@@ -1,26 +1,23 @@
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
-const ENV_PREFIX = ['VITE_']
+const ENV_PREFIX = ["VITE_"];
 
 export default defineConfig(() => ({
   envPrefix: ENV_PREFIX,
-  server: { 
-    port: 5000, 
-    host: '0.0.0.0',
-    strictPort: true,
-    allowedHosts: true as const
+  server: {
+    port: 5000,
+    host: "0.0.0.0",
+    allowedHosts: true as const,
   },
   assetsInclude: ["**/*.glb"],
   define: {
-    'process.env.ANCHOR_BROWSER': true,
+    "process.env.ANCHOR_BROWSER": true,
   },
   resolve: {
     alias: {
-      crypto: 'crypto-browserify',
+      crypto: "crypto-browserify",
     },
   },
-  plugins: [
-    react({ jsxRuntime: 'classic' }),
-  ],
-}))
+  plugins: [react({ jsxRuntime: "classic" })],
+}));
