@@ -1,0 +1,2448 @@
+import * as _solana_spl_token from '@solana/spl-token';
+export { NATIVE_MINT } from '@solana/spl-token';
+import * as anchor from '@coral-xyz/anchor';
+import { IdlEvents, IdlAccounts } from '@coral-xyz/anchor';
+import * as _solana_web3_js from '@solana/web3.js';
+import { Keypair, Connection, ConfirmOptions, PublicKey, ParsedTransactionWithMeta, SignaturesForAddressOptions, AccountInfo } from '@solana/web3.js';
+import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
+
+type Gamba = {
+    "version": "0.1.0";
+    "name": "gamba";
+    "instructions": [
+        {
+            "name": "gambaInitialize";
+            "accounts": [
+                {
+                    "name": "initializer";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "systemProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                }
+            ];
+            "args": [];
+        },
+        {
+            "name": "gambaSetAuthority";
+            "accounts": [
+                {
+                    "name": "authority";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                    "relations": [
+                        "authority"
+                    ];
+                }
+            ];
+            "args": [
+                {
+                    "name": "authority";
+                    "type": "publicKey";
+                }
+            ];
+        },
+        {
+            "name": "gambaSetConfig";
+            "accounts": [
+                {
+                    "name": "authority";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                    "relations": [
+                        "authority"
+                    ];
+                }
+            ];
+            "args": [
+                {
+                    "name": "rngAddress";
+                    "type": "publicKey";
+                },
+                {
+                    "name": "gambaFee";
+                    "type": "u64";
+                },
+                {
+                    "name": "maxCreatorFee";
+                    "type": "u64";
+                },
+                {
+                    "name": "poolCreationFee";
+                    "type": "u64";
+                },
+                {
+                    "name": "antiSpamFee";
+                    "type": "u64";
+                },
+                {
+                    "name": "maxHouseEdge";
+                    "type": "u64";
+                },
+                {
+                    "name": "defaultPoolFee";
+                    "type": "u64";
+                },
+                {
+                    "name": "jackpotPayoutToUserBps";
+                    "type": "u64";
+                },
+                {
+                    "name": "jackpotPayoutToCreatorBps";
+                    "type": "u64";
+                },
+                {
+                    "name": "jackpotPayoutToPoolBps";
+                    "type": "u64";
+                },
+                {
+                    "name": "jackpotPayoutToGambaBps";
+                    "type": "u64";
+                },
+                {
+                    "name": "bonusToJackpotRatioBps";
+                    "type": "u64";
+                },
+                {
+                    "name": "maxPayoutBps";
+                    "type": "u64";
+                },
+                {
+                    "name": "poolWithdrawFeeBps";
+                    "type": "u64";
+                },
+                {
+                    "name": "poolCreationAllowed";
+                    "type": "bool";
+                },
+                {
+                    "name": "poolDepositAllowed";
+                    "type": "bool";
+                },
+                {
+                    "name": "poolWithdrawAllowed";
+                    "type": "bool";
+                },
+                {
+                    "name": "playingAllowed";
+                    "type": "bool";
+                },
+                {
+                    "name": "distributionRecipient";
+                    "type": "publicKey";
+                }
+            ];
+        },
+        {
+            "name": "poolInitialize";
+            "accounts": [
+                {
+                    "name": "initializer";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "underlyingTokenMint";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "pool";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Mint";
+                                "path": "underlying_token_mint";
+                            },
+                            {
+                                "kind": "arg";
+                                "type": "publicKey";
+                                "path": "pool_authority";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "poolUnderlyingTokenAccount";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_ATA";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "poolBonusUnderlyingTokenAccount";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_BONUS_UNDERLYING_TA";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "poolJackpotTokenAccount";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_JACKPOT";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "gambaStateAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "lpMint";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_LP_MINT";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "lpMintMetadata";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "bonusMint";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_BONUS_MINT";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "bonusMintMetadata";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "associatedTokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "tokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "systemProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "rent";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "tokenMetadataProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                }
+            ];
+            "args": [
+                {
+                    "name": "poolAuthority";
+                    "type": "publicKey";
+                },
+                {
+                    "name": "lookupAddress";
+                    "type": "publicKey";
+                }
+            ];
+        },
+        {
+            "name": "poolDeposit";
+            "accounts": [
+                {
+                    "name": "user";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": false;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "pool";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "poolUnderlyingTokenAccount";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_ATA";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "lpMint";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_LP_MINT";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "underlyingTokenMint";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "userUnderlyingAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "userLpAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "associatedTokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "tokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "systemProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                }
+            ];
+            "args": [
+                {
+                    "name": "amount";
+                    "type": "u64";
+                }
+            ];
+        },
+        {
+            "name": "poolWithdraw";
+            "accounts": [
+                {
+                    "name": "user";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "pool";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "poolUnderlyingTokenAccount";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_ATA";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "lpMint";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_LP_MINT";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "underlyingTokenMint";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "userUnderlyingAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "userLpAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": false;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "associatedTokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "tokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "systemProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                }
+            ];
+            "args": [
+                {
+                    "name": "amount";
+                    "type": "u64";
+                }
+            ];
+        },
+        {
+            "name": "poolMintBonusTokens";
+            "accounts": [
+                {
+                    "name": "user";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "pool";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": false;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "underlyingTokenMint";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "poolBonusUnderlyingTokenAccount";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_BONUS_UNDERLYING_TA";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "bonusMint";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_BONUS_MINT";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "poolJackpotTokenAccount";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_JACKPOT";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "userUnderlyingAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "userBonusAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "associatedTokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "tokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "systemProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                }
+            ];
+            "args": [
+                {
+                    "name": "amount";
+                    "type": "u64";
+                }
+            ];
+        },
+        {
+            "name": "poolAuthorityConfig";
+            "accounts": [
+                {
+                    "name": "user";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": false;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "pool";
+                    "isMut": true;
+                    "isSigner": false;
+                }
+            ];
+            "args": [
+                {
+                    "name": "minWager";
+                    "type": "u64";
+                },
+                {
+                    "name": "depositLimit";
+                    "type": "bool";
+                },
+                {
+                    "name": "depositLimitAmount";
+                    "type": "u64";
+                },
+                {
+                    "name": "customPoolFee";
+                    "type": "bool";
+                },
+                {
+                    "name": "customPoolFeeBps";
+                    "type": "u64";
+                },
+                {
+                    "name": "customMexPayout";
+                    "type": "bool";
+                },
+                {
+                    "name": "customMaxPayoutBps";
+                    "type": "u64";
+                },
+                {
+                    "name": "depositWhitelistRequired";
+                    "type": "bool";
+                },
+                {
+                    "name": "depositWhitelistAddress";
+                    "type": "publicKey";
+                }
+            ];
+        },
+        {
+            "name": "poolGambaConfig";
+            "accounts": [
+                {
+                    "name": "user";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": false;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "pool";
+                    "isMut": true;
+                    "isSigner": false;
+                }
+            ];
+            "args": [
+                {
+                    "name": "antiSpamFeeExemption";
+                    "type": "bool";
+                },
+                {
+                    "name": "customGambaFee";
+                    "type": "bool";
+                },
+                {
+                    "name": "customGambaFeeBps";
+                    "type": "u64";
+                }
+            ];
+        },
+        {
+            "name": "playerInitialize";
+            "accounts": [
+                {
+                    "name": "player";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "PLAYER";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "path": "user";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "game";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAME";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "path": "user";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "user";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "systemProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                }
+            ];
+            "args": [];
+        },
+        {
+            "name": "playGame";
+            "accounts": [
+                {
+                    "name": "user";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "player";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "PLAYER";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "path": "user";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "game";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAME";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "path": "user";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "pool";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "underlyingTokenMint";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "bonusTokenMint";
+                    "isMut": false;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_BONUS_MINT";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "userUnderlyingAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "creator";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "creatorAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "playerAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "playerBonusAta";
+                    "isMut": true;
+                    "isSigner": false;
+                    "isOptional": true;
+                },
+                {
+                    "name": "userBonusAta";
+                    "isMut": true;
+                    "isSigner": false;
+                    "isOptional": true;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "poolJackpotTokenAccount";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_JACKPOT";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "systemProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "tokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "associatedTokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                }
+            ];
+            "args": [
+                {
+                    "name": "wager";
+                    "type": "u64";
+                },
+                {
+                    "name": "bet";
+                    "type": {
+                        "vec": "u32";
+                    };
+                },
+                {
+                    "name": "clientSeed";
+                    "type": "string";
+                },
+                {
+                    "name": "creatorFeeBps";
+                    "type": "u32";
+                },
+                {
+                    "name": "jackpotFeeBps";
+                    "type": "u32";
+                },
+                {
+                    "name": "metadata";
+                    "type": "string";
+                }
+            ];
+        },
+        {
+            "name": "playerClose";
+            "accounts": [
+                {
+                    "name": "user";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "player";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "PLAYER";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "path": "user";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "game";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAME";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "path": "user";
+                            }
+                        ];
+                    };
+                }
+            ];
+            "args": [];
+        },
+        {
+            "name": "playerClaim";
+            "accounts": [
+                {
+                    "name": "user";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "underlyingTokenMint";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "player";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "PLAYER";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "path": "user";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "game";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAME";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "path": "user";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "playerAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "userUnderlyingAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "systemProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "tokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "associatedTokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                }
+            ];
+            "args": [];
+        },
+        {
+            "name": "rngSettle";
+            "accounts": [
+                {
+                    "name": "rng";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "user";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "player";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "PLAYER";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "path": "user";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "game";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAME";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "path": "user";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "pool";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "underlyingTokenMint";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "poolUnderlyingTokenAccount";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_ATA";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "poolBonusUnderlyingTokenAccount";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_BONUS_UNDERLYING_TA";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "playerAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "userUnderlyingAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": false;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "gambaStateAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "creator";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "creatorAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "bonusTokenMint";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_BONUS_MINT";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "playerBonusAta";
+                    "isMut": true;
+                    "isSigner": false;
+                    "isOptional": true;
+                },
+                {
+                    "name": "poolJackpotTokenAccount";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "POOL_JACKPOT";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Pool";
+                                "path": "pool";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "escrowTokenAccount";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "ESCROW";
+                            },
+                            {
+                                "kind": "account";
+                                "type": "publicKey";
+                                "account": "Player";
+                                "path": "player";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "systemProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "tokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "associatedTokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "rent";
+                    "isMut": false;
+                    "isSigner": false;
+                }
+            ];
+            "args": [
+                {
+                    "name": "rngSeed";
+                    "type": "string";
+                },
+                {
+                    "name": "nextRngSeedHashed";
+                    "type": "string";
+                }
+            ];
+        },
+        {
+            "name": "rngProvideHashedSeed";
+            "accounts": [
+                {
+                    "name": "game";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "rng";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                }
+            ];
+            "args": [
+                {
+                    "name": "nextRngSeedHashed";
+                    "type": "string";
+                }
+            ];
+        },
+        {
+            "name": "distributeFees";
+            "accounts": [
+                {
+                    "name": "signer";
+                    "isMut": true;
+                    "isSigner": true;
+                },
+                {
+                    "name": "underlyingTokenMint";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "gambaState";
+                    "isMut": true;
+                    "isSigner": false;
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const";
+                                "type": "string";
+                                "value": "GAMBA_STATE";
+                            }
+                        ];
+                    };
+                },
+                {
+                    "name": "gambaStateAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "distributionRecipient";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "distributionRecipientAta";
+                    "isMut": true;
+                    "isSigner": false;
+                },
+                {
+                    "name": "associatedTokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "tokenProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                },
+                {
+                    "name": "systemProgram";
+                    "isMut": false;
+                    "isSigner": false;
+                }
+            ];
+            "args": [
+                {
+                    "name": "nativeSol";
+                    "type": "bool";
+                }
+            ];
+        }
+    ];
+    "accounts": [
+        {
+            "name": "game";
+            "type": {
+                "kind": "struct";
+                "fields": [
+                    {
+                        "name": "bump";
+                        "type": {
+                            "array": [
+                                "u8",
+                                1
+                            ];
+                        };
+                    },
+                    {
+                        "name": "nonce";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "user";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "tokenMint";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "pool";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "status";
+                        "type": {
+                            "defined": "GameStatus";
+                        };
+                    },
+                    {
+                        "name": "nextRngSeedHashed";
+                        "docs": [
+                            "SHA256 of coming rng_seed. Available at start of the game"
+                        ];
+                        "type": "string";
+                    },
+                    {
+                        "name": "rngSeed";
+                        "docs": [
+                            "Is revealed by the RNG after a play"
+                        ];
+                        "type": "string";
+                    },
+                    {
+                        "name": "timestamp";
+                        "type": "i64";
+                    },
+                    {
+                        "name": "creator";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "creatorMeta";
+                        "type": "string";
+                    },
+                    {
+                        "name": "wager";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "underlyingUsed";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "bonusUsed";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "creatorFee";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "gambaFee";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "poolFee";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "jackpotFee";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "jackpotResult";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "jackpotProbabilityUbps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "jackpotPayout";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "clientSeed";
+                        "type": "string";
+                    },
+                    {
+                        "name": "bet";
+                        "type": {
+                            "vec": "u32";
+                        };
+                    },
+                    {
+                        "name": "result";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "points";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "pointsAuthority";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "metadata";
+                        "type": "string";
+                    }
+                ];
+            };
+        },
+        {
+            "name": "player";
+            "type": {
+                "kind": "struct";
+                "fields": [
+                    {
+                        "name": "bump";
+                        "type": {
+                            "array": [
+                                "u8",
+                                1
+                            ];
+                        };
+                    },
+                    {
+                        "name": "user";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "nonce";
+                        "type": "u64";
+                    }
+                ];
+            };
+        },
+        {
+            "name": "pool";
+            "type": {
+                "kind": "struct";
+                "fields": [
+                    {
+                        "name": "bump";
+                        "type": {
+                            "array": [
+                                "u8",
+                                1
+                            ];
+                        };
+                    },
+                    {
+                        "name": "lookupAddress";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "poolAuthority";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "underlyingTokenMint";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "antiSpamFeeExempt";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "minWager";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "plays";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "liquidityCheckpoint";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "depositLimit";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "depositLimitAmount";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "customPoolFee";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "customPoolFeeBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "customGambaFee";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "customGambaFeeBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "customMaxPayout";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "customMaxPayoutBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "customBonusTokenMint";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "customBonusToken";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "customMaxCreatorFee";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "customMaxCreatorFeeBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "depositWhitelistRequired";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "depositWhitelistAddress";
+                        "type": "publicKey";
+                    }
+                ];
+            };
+        },
+        {
+            "name": "gambaState";
+            "type": {
+                "kind": "struct";
+                "fields": [
+                    {
+                        "name": "authority";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "rngAddress";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "rngAddress2";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "antiSpamFee";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "gambaFeeBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "poolCreationFee";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "defaultPoolFee";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "jackpotPayoutToUserBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "jackpotPayoutToCreatorBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "jackpotPayoutToPoolBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "jackpotPayoutToGambaBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "bonusToJackpotRatioBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "maxHouseEdgeBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "maxCreatorFeeBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "maxPayoutBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "poolWithdrawFeeBps";
+                        "type": "u64";
+                    },
+                    {
+                        "name": "poolCreationAllowed";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "poolDepositAllowed";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "poolWithdrawAllowed";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "playingAllowed";
+                        "type": "bool";
+                    },
+                    {
+                        "name": "distributionRecipient";
+                        "type": "publicKey";
+                    },
+                    {
+                        "name": "bump";
+                        "type": {
+                            "array": [
+                                "u8",
+                                1
+                            ];
+                        };
+                    }
+                ];
+            };
+        }
+    ];
+    "types": [
+        {
+            "name": "PlayerError";
+            "type": {
+                "kind": "enum";
+                "variants": [
+                    {
+                        "name": "NotReadyToPlay";
+                    },
+                    {
+                        "name": "CreatorFeeTooHigh";
+                    },
+                    {
+                        "name": "WagerTooSmall";
+                    },
+                    {
+                        "name": "TooFewBetOutcomes";
+                    },
+                    {
+                        "name": "TooManyBetOutcomes";
+                    },
+                    {
+                        "name": "PlayerAdvantage";
+                    },
+                    {
+                        "name": "HouseAdvantageTooHigh";
+                    },
+                    {
+                        "name": "MaxPayoutExceeded";
+                    }
+                ];
+            };
+        },
+        {
+            "name": "RngError";
+            "type": {
+                "kind": "enum";
+                "variants": [
+                    {
+                        "name": "Generic";
+                    },
+                    {
+                        "name": "InitialHashedSeedAlreadyProvided";
+                    },
+                    {
+                        "name": "IncorrectRngSeed";
+                    },
+                    {
+                        "name": "ResultNotRequested";
+                    }
+                ];
+            };
+        },
+        {
+            "name": "GambaStateError";
+            "type": {
+                "kind": "enum";
+                "variants": [
+                    {
+                        "name": "PlaysNotAllowed";
+                    },
+                    {
+                        "name": "DepositNotAllowed";
+                    },
+                    {
+                        "name": "WithdrawalNotAllowed";
+                    },
+                    {
+                        "name": "PoolCreationNotAllowed";
+                    },
+                    {
+                        "name": "DepositLimitExceeded";
+                    },
+                    {
+                        "name": "DepositWhitelistRequired";
+                    }
+                ];
+            };
+        },
+        {
+            "name": "PoolAction";
+            "type": {
+                "kind": "enum";
+                "variants": [
+                    {
+                        "name": "Deposit";
+                    },
+                    {
+                        "name": "Withdraw";
+                    }
+                ];
+            };
+        },
+        {
+            "name": "GameStatus";
+            "type": {
+                "kind": "enum";
+                "variants": [
+                    {
+                        "name": "None";
+                    },
+                    {
+                        "name": "NotInitialized";
+                    },
+                    {
+                        "name": "Ready";
+                    },
+                    {
+                        "name": "ResultRequested";
+                    }
+                ];
+            };
+        }
+    ];
+    "events": [
+        {
+            "name": "GameSettled";
+            "fields": [
+                {
+                    "name": "user";
+                    "type": "publicKey";
+                    "index": false;
+                },
+                {
+                    "name": "pool";
+                    "type": "publicKey";
+                    "index": false;
+                },
+                {
+                    "name": "tokenMint";
+                    "type": "publicKey";
+                    "index": false;
+                },
+                {
+                    "name": "creator";
+                    "type": "publicKey";
+                    "index": false;
+                },
+                {
+                    "name": "creatorFee";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "gambaFee";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "poolFee";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "jackpotFee";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "underlyingUsed";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "bonusUsed";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "wager";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "payout";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "multiplierBps";
+                    "type": "u32";
+                    "index": false;
+                },
+                {
+                    "name": "payoutFromBonusPool";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "payoutFromNormalPool";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "jackpotProbabilityUbps";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "jackpotResult";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "nonce";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "clientSeed";
+                    "type": "string";
+                    "index": false;
+                },
+                {
+                    "name": "resultIndex";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "bet";
+                    "type": {
+                        "vec": "u32";
+                    };
+                    "index": false;
+                },
+                {
+                    "name": "jackpotPayoutToUser";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "poolLiquidity";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "rngSeed";
+                    "type": "string";
+                    "index": false;
+                },
+                {
+                    "name": "nextRngSeedHashed";
+                    "type": "string";
+                    "index": false;
+                },
+                {
+                    "name": "metadata";
+                    "type": "string";
+                    "index": false;
+                }
+            ];
+        },
+        {
+            "name": "PoolChange";
+            "fields": [
+                {
+                    "name": "user";
+                    "type": "publicKey";
+                    "index": false;
+                },
+                {
+                    "name": "pool";
+                    "type": "publicKey";
+                    "index": false;
+                },
+                {
+                    "name": "tokenMint";
+                    "type": "publicKey";
+                    "index": false;
+                },
+                {
+                    "name": "action";
+                    "type": {
+                        "defined": "PoolAction";
+                    };
+                    "index": false;
+                },
+                {
+                    "name": "amount";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "postLiquidity";
+                    "type": "u64";
+                    "index": false;
+                },
+                {
+                    "name": "lpSupply";
+                    "type": "u64";
+                    "index": false;
+                }
+            ];
+        }
+    ];
+    "errors": [
+        {
+            "code": 6000;
+            "name": "GenericError";
+            "msg": "Something went wrong";
+        },
+        {
+            "code": 6001;
+            "name": "Unauthorized";
+            "msg": "Unauthorized";
+        }
+    ];
+};
+declare const IDL: Gamba;
+
+type GambaEventType = 'GameSettled' | 'PoolChange';
+type GambaEvent<T extends GambaEventType> = {
+    name: string;
+    data: IdlEvents<Gamba>[T];
+};
+type AnyGambaEvent = GambaEvent<'GameSettled'> | GambaEvent<'PoolChange'>;
+type GambaState = IdlAccounts<Gamba>['gambaState'];
+type PlayerState = IdlAccounts<Gamba>['player'];
+type GameState = IdlAccounts<Gamba>['game'];
+type PoolState = IdlAccounts<Gamba>['pool'];
+type GambaProviderWallet = Omit<NodeWallet, 'payer'> & {
+    payer?: Keypair;
+};
+
+declare class GambaProvider {
+    gambaProgram: anchor.Program<Gamba>;
+    anchorProvider: anchor.AnchorProvider;
+    wallet: GambaProviderWallet;
+    constructor(connection: Connection, walletOrKeypair: GambaProviderWallet | Keypair, opts?: ConfirmOptions);
+    static fromAnchorProvider(provider: anchor.AnchorProvider): GambaProvider;
+    get user(): anchor.web3.PublicKey;
+    /**
+     * Creates a pool for the specified token with address lookup table
+     * @param underlyingTokenMint The token to use for the pool
+     * @param authority The authority for the pool
+     * @param slot The slot to use for the lookup table instruction
+     * @returns Multiple TransactionInstruction in an array
+     */
+    createPool(underlyingTokenMint: PublicKey, authority: PublicKey, slot: number): (anchor.web3.TransactionInstruction | Promise<anchor.web3.TransactionInstruction>)[];
+    /**
+     *
+     * @param pool The pool to deposit to
+     * @param underlyingTokenMint Token to deposit (Has to be the same as pool.underlyingTokenMint)
+     * @param amount Amount of tokens to deposit
+     */
+    depositToPool(pool: PublicKey, underlyingTokenMint: PublicKey, amount: bigint | number): Promise<anchor.web3.TransactionInstruction>;
+    /**
+     *
+     * @param pool The pool to withdraw from
+     * @param underlyingTokenMint Token to withdraw (Has to be the same as pool.underlyingTokenMint)
+     * @param amount Amount of tokens to withdraw
+     */
+    withdrawFromPool(pool: PublicKey, underlyingTokenMint: PublicKey, amount: bigint | number): Promise<anchor.web3.TransactionInstruction>;
+    /**
+     * Mints bonus tokens that can be used as free plays in the pool
+     * @param pool Pool to mint bonus tokens for
+     * @param underlyingTokenMint Token to mint bonus tokens for (Has to be equal to pool.underlyingTokenMint)
+     * @param amount Amount of bonus tokens to mint
+     */
+    mintBonusTokens(pool: PublicKey, underlyingTokenMint: PublicKey, amount: bigint | number): Promise<anchor.web3.TransactionInstruction>;
+    /**
+     * Initializes an associated Player account for the connected wallet
+     */
+    createPlayer(): Promise<anchor.web3.TransactionInstruction>;
+    /**
+     * Closes the associated Player account for the connected wallet
+     */
+    closePlayer(): Promise<anchor.web3.TransactionInstruction>;
+    play(wager: number, bet: number[], clientSeed: string, pool: PublicKey, underlyingTokenMint: PublicKey, creator: PublicKey, creatorFee: number, jackpotFee: number, metadata: string, useBonus: boolean): Promise<anchor.web3.TransactionInstruction>;
+}
+
+declare const PROGRAM_ID: PublicKey;
+declare const SYSTEM_PROGRAM: PublicKey;
+declare const GAME_SEED = "GAME";
+declare const PLAYER_SEED = "PLAYER";
+declare const POOL_SEED = "POOL";
+declare const GAMBA_STATE_SEED = "GAMBA_STATE";
+declare const POOL_ATA_SEED = "POOL_ATA";
+declare const POOL_JACKPOT_SEED = "POOL_JACKPOT";
+declare const POOL_BONUS_UNDERLYING_TA_SEED = "POOL_BONUS_UNDERLYING_TA";
+declare const POOL_BONUS_MINT_SEED = "POOL_BONUS_MINT";
+declare const POOL_LP_MINT_SEED = "POOL_LP_MINT";
+
+type GambaTransaction<Event extends GambaEventType> = {
+    signature: string;
+    time: number;
+    name: Event;
+    data: GambaEvent<Event>['data'];
+};
+/**
+ * Extracts events from transaction logs
+ */
+declare const parseTransactionEvents: (logs: string[]) => AnyGambaEvent[];
+/**
+ * Extracts events from a transaction
+ */
+declare const parseGambaTransaction: (transaction: ParsedTransactionWithMeta) => (GambaTransaction<"GameSettled"> | GambaTransaction<"PoolChange">)[];
+declare function fetchGambaTransactionsFromSignatures(connection: Connection, signatures: string[]): Promise<(GambaTransaction<"GameSettled"> | GambaTransaction<"PoolChange">)[]>;
+/**
+ * Fetches recent Gamba events
+ */
+declare function fetchGambaTransactions(connection: Connection, address: PublicKey, options: SignaturesForAddressOptions): Promise<(GambaTransaction<"GameSettled"> | GambaTransaction<"PoolChange">)[]>;
+
+declare const wrapSol: (from: PublicKey, amount: bigint | number, create: boolean) => Promise<_solana_web3_js.TransactionInstruction[]>;
+declare const unwrapSol: (from: PublicKey) => Promise<_solana_web3_js.TransactionInstruction>;
+
+declare const hmac256: (secretKey: string, message: string) => Promise<string>;
+declare const getGameHash: (rngSeed: string, clientSeed: string, nonce: number) => Promise<string>;
+declare const getResultNumber: (rngSeed: string, clientSeed: string, nonce: number) => Promise<number>;
+declare const decodeAta: (acc: AccountInfo<Buffer> | null) => _solana_spl_token.RawAccount | null;
+declare const decodePlayer: (info: AccountInfo<Buffer> | null) => {
+    bump: number[];
+    user: PublicKey;
+    nonce: BN;
+} | null;
+declare const decodeGame: (info: AccountInfo<Buffer> | null) => {
+    bump: number[];
+    nonce: BN;
+    user: PublicKey;
+    tokenMint: PublicKey;
+    pool: PublicKey;
+    status: {
+        none?: Record<string, never> | undefined;
+        notInitialized?: Record<string, never> | undefined;
+        ready?: Record<string, never> | undefined;
+        resultRequested?: Record<string, never> | undefined;
+    };
+    nextRngSeedHashed: string;
+    rngSeed: string;
+    timestamp: BN;
+    creator: PublicKey;
+    creatorMeta: string;
+    wager: BN;
+    underlyingUsed: BN;
+    bonusUsed: BN;
+    creatorFee: BN;
+    gambaFee: BN;
+    poolFee: BN;
+    jackpotFee: BN;
+    jackpotResult: BN;
+    jackpotProbabilityUbps: BN;
+    jackpotPayout: BN;
+    clientSeed: string;
+    bet: number[];
+    result: BN;
+    points: boolean;
+    pointsAuthority: PublicKey;
+    metadata: string;
+} | null;
+declare const decodePool: (info: AccountInfo<Buffer> | null) => {
+    bump: number[];
+    lookupAddress: PublicKey;
+    poolAuthority: PublicKey;
+    underlyingTokenMint: PublicKey;
+    antiSpamFeeExempt: boolean;
+    minWager: BN;
+    plays: BN;
+    liquidityCheckpoint: BN;
+    depositLimit: boolean;
+    depositLimitAmount: BN;
+    customPoolFee: boolean;
+    customPoolFeeBps: BN;
+    customGambaFee: boolean;
+    customGambaFeeBps: BN;
+    customMaxPayout: boolean;
+    customMaxPayoutBps: BN;
+    customBonusTokenMint: PublicKey;
+    customBonusToken: boolean;
+    customMaxCreatorFee: boolean;
+    customMaxCreatorFeeBps: BN;
+    depositWhitelistRequired: boolean;
+    depositWhitelistAddress: PublicKey;
+} | null;
+declare const decodeGambaState: (info: AccountInfo<Buffer> | null) => {
+    authority: PublicKey;
+    rngAddress: PublicKey;
+    rngAddress2: PublicKey;
+    antiSpamFee: BN;
+    gambaFeeBps: BN;
+    poolCreationFee: BN;
+    defaultPoolFee: BN;
+    jackpotPayoutToUserBps: BN;
+    jackpotPayoutToCreatorBps: BN;
+    jackpotPayoutToPoolBps: BN;
+    jackpotPayoutToGambaBps: BN;
+    bonusToJackpotRatioBps: BN;
+    maxHouseEdgeBps: BN;
+    maxCreatorFeeBps: BN;
+    maxPayoutBps: BN;
+    poolWithdrawFeeBps: BN;
+    poolCreationAllowed: boolean;
+    poolDepositAllowed: boolean;
+    poolWithdrawAllowed: boolean;
+    playingAllowed: boolean;
+    distributionRecipient: PublicKey;
+    bump: number[];
+} | null;
+declare const BPS_PER_WHOLE = 10000;
+declare const basisPoints: (percent: number) => number;
+declare const getPdaAddress: (...seeds: (Uint8Array | Buffer)[]) => PublicKey;
+declare const getPoolAddress: (underlyingMint: PublicKey, authority?: PublicKey) => PublicKey;
+declare const getGambaStateAddress: () => PublicKey;
+declare const getPlayerAddress: (owner: PublicKey) => PublicKey;
+declare const getGameAddress: (owner: PublicKey) => PublicKey;
+declare const getPoolLpAddress: (pool: PublicKey) => PublicKey;
+declare const getPoolBonusAddress: (pool: PublicKey) => PublicKey;
+declare const getPoolUnderlyingTokenAccountAddress: (pool: PublicKey) => PublicKey;
+declare const getPoolJackpotTokenAccountAddress: (pool: PublicKey) => PublicKey;
+declare const getPoolBonusUnderlyingTokenAccountAddress: (pool: PublicKey) => PublicKey;
+declare const getUserUnderlyingAta: (user: PublicKey, underlyingTokenMint: PublicKey) => PublicKey;
+declare const getPlayerUnderlyingAta: (user: PublicKey, underlyingTokenMint: PublicKey) => PublicKey;
+declare const getUserBonusAtaForPool: (user: PublicKey, pool: PublicKey) => PublicKey;
+declare const getUserLpAtaForPool: (user: PublicKey, pool: PublicKey) => PublicKey;
+declare const getPlayerBonusAtaForPool: (user: PublicKey, pool: PublicKey) => PublicKey;
+declare const getUserWsolAccount: (user: PublicKey) => PublicKey;
+declare const isNativeMint: (pubkey: PublicKey) => boolean;
+type GameResult = ReturnType<typeof parseResult>;
+declare const parseResult: (state: GameState) => {
+    creator: PublicKey;
+    user: PublicKey;
+    rngSeed: string;
+    clientSeed: string;
+    nonce: number;
+    bet: number[];
+    resultIndex: any;
+    wager: any;
+    payout: number;
+    profit: number;
+    multiplier: number;
+    token: PublicKey;
+    bonusUsed: any;
+    jackpotWin: any;
+};
+declare function getNextResult(connection: Connection, user: PublicKey, prevNonce: number): Promise<{
+    creator: PublicKey;
+    user: PublicKey;
+    rngSeed: string;
+    clientSeed: string;
+    nonce: number;
+    bet: number[];
+    resultIndex: any;
+    wager: any;
+    payout: number;
+    profit: number;
+    multiplier: number;
+    token: PublicKey;
+    bonusUsed: any;
+    jackpotWin: any;
+}>;
+
+export { AnyGambaEvent, BPS_PER_WHOLE, GAMBA_STATE_SEED, GAME_SEED, GambaEvent, GambaEventType, Gamba as GambaIdl, GambaProvider, GambaProviderWallet, GambaState, GambaTransaction, GameResult, GameState, IDL, PLAYER_SEED, POOL_ATA_SEED, POOL_BONUS_MINT_SEED, POOL_BONUS_UNDERLYING_TA_SEED, POOL_JACKPOT_SEED, POOL_LP_MINT_SEED, POOL_SEED, PROGRAM_ID, PlayerState, PoolState, SYSTEM_PROGRAM, basisPoints, decodeAta, decodeGambaState, decodeGame, decodePlayer, decodePool, fetchGambaTransactions, fetchGambaTransactionsFromSignatures, getGambaStateAddress, getGameAddress, getGameHash, getNextResult, getPdaAddress, getPlayerAddress, getPlayerBonusAtaForPool, getPlayerUnderlyingAta, getPoolAddress, getPoolBonusAddress, getPoolBonusUnderlyingTokenAccountAddress, getPoolJackpotTokenAccountAddress, getPoolLpAddress, getPoolUnderlyingTokenAccountAddress, getResultNumber, getUserBonusAtaForPool, getUserLpAtaForPool, getUserUnderlyingAta, getUserWsolAccount, hmac256, isNativeMint, parseGambaTransaction, parseResult, parseTransactionEvents, unwrapSol, wrapSol };

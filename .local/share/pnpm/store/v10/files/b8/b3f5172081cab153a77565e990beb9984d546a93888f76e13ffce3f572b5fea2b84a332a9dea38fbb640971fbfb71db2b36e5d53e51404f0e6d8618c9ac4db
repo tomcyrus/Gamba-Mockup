@@ -1,0 +1,207 @@
+import * as gamba_core_v2 from 'gamba-core-v2';
+import { GambaEventType, GambaTransaction, GambaProvider as GambaProvider$1 } from 'gamba-core-v2';
+export { GameResult } from 'gamba-core-v2';
+import * as _solana_web3_js from '@solana/web3.js';
+import { Commitment, PublicKey, AccountInfo, TransactionInstruction } from '@solana/web3.js';
+import React from 'react';
+import * as _coral_xyz_anchor from '@coral-xyz/anchor';
+import * as zustand from 'zustand';
+import { StoreApi } from 'zustand';
+
+interface SendTransactionContext {
+    /** Priority fee in microlamports. If set, a setComputeUnitPrice is added instruction to the transactions */
+    priorityFee?: number;
+    simulationUnits: number;
+    /** % of the consumed units in the simulation to be used as computeUnitLimit in the actual transaction */
+    computeUnitLimitMargin: number;
+    /**  */
+    blockhashCommitment?: Commitment;
+}
+declare const SendTransactionContext: React.Context<SendTransactionContext>;
+type SendTransactionProps = Partial<SendTransactionContext>;
+declare function SendTransactionProvider({ children, ...props }: React.PropsWithChildren<SendTransactionProps>): React.JSX.Element;
+
+declare function useAccount<T>(address: PublicKey, decoder: (x: AccountInfo<Buffer> | null) => T): T | undefined;
+
+declare function useWalletAddress(): PublicKey;
+declare function useBalance(publicKey: PublicKey, token: PublicKey, authority?: PublicKey): {
+    nativeBalance: number;
+    balance: number;
+    bonusBalance: number;
+};
+
+declare const throwTransactionError: (error: any) => any;
+declare function useTransactionError(callback: (error: any) => void): void;
+interface SendTransactionOptions {
+    confirmation?: Commitment;
+    lookupTable?: PublicKey[];
+    priorityFee?: number;
+    computeUnitLimitMargin?: number;
+    /** Skip simulation and manually set compute units */
+    computeUnits?: number;
+    label?: string;
+}
+declare function useSendTransaction(): (instructions: TransactionInstruction | Promise<TransactionInstruction> | (TransactionInstruction | Promise<TransactionInstruction>)[], opts?: SendTransactionOptions) => Promise<string>;
+
+interface GambaPlayInput {
+    wager: number;
+    bet: number[];
+    creator: string | PublicKey;
+    creatorFee?: number;
+    jackpotFee?: number;
+    clientSeed?: string;
+    token?: string | PublicKey;
+    poolAuthority?: string | PublicKey;
+    metadata?: (string | number)[];
+    useBonus?: boolean;
+}
+declare function useGambaPlay(): (input: GambaPlayInput, additionalInstructions?: TransactionInstruction[], opts?: SendTransactionOptions & {
+    lookupTables?: PublicKey[];
+}) => Promise<string>;
+
+declare function useNextResult(): () => Promise<{
+    creator: _solana_web3_js.PublicKey;
+    user: _solana_web3_js.PublicKey;
+    rngSeed: string;
+    clientSeed: string;
+    nonce: number;
+    bet: number[];
+    resultIndex: any;
+    wager: any;
+    payout: number;
+    profit: number;
+    multiplier: number;
+    token: _solana_web3_js.PublicKey;
+    bonusUsed: any;
+    jackpotWin: any;
+}>;
+declare function useGamba(): {
+    play: (input: GambaPlayInput, additionalInstructions?: _solana_web3_js.TransactionInstruction[], opts?: (SendTransactionOptions & {
+        lookupTables?: _solana_web3_js.PublicKey[] | undefined;
+    }) | undefined) => Promise<string>;
+    result: () => Promise<{
+        creator: _solana_web3_js.PublicKey;
+        user: _solana_web3_js.PublicKey;
+        rngSeed: string;
+        clientSeed: string;
+        nonce: number;
+        bet: number[];
+        resultIndex: any;
+        wager: any;
+        payout: number;
+        profit: number;
+        multiplier: number;
+        token: _solana_web3_js.PublicKey;
+        bonusUsed: any;
+        jackpotWin: any;
+    }>;
+    userCreated: boolean;
+    nonce: number;
+    nextRngSeedHashed: string | undefined;
+    game: {
+        bump: number[];
+        nonce: BN;
+        user: _solana_web3_js.PublicKey;
+        tokenMint: _solana_web3_js.PublicKey;
+        pool: _solana_web3_js.PublicKey;
+        status: {
+            none?: Record<string, never> | undefined;
+            notInitialized?: Record<string, never> | undefined;
+            ready?: Record<string, never> | undefined;
+            resultRequested?: Record<string, never> | undefined;
+        };
+        nextRngSeedHashed: string;
+        rngSeed: string;
+        timestamp: BN;
+        creator: _solana_web3_js.PublicKey;
+        creatorMeta: string;
+        wager: BN;
+        underlyingUsed: BN;
+        bonusUsed: BN;
+        creatorFee: BN;
+        gambaFee: BN;
+        poolFee: BN;
+        jackpotFee: BN;
+        jackpotResult: BN;
+        jackpotProbabilityUbps: BN;
+        jackpotPayout: BN;
+        clientSeed: string;
+        bet: number[];
+        result: BN;
+        points: boolean;
+        pointsAuthority: _solana_web3_js.PublicKey;
+        metadata: string;
+    } | null | undefined;
+    isPlaying: boolean;
+};
+
+interface UseGambaEventsParams {
+    address?: PublicKey;
+    signatureLimit?: number;
+    listen?: boolean;
+}
+declare function useGambaEventListener<T extends GambaEventType>(eventName: T, callback: (event: GambaTransaction<T>) => void, deps?: React.DependencyList): void;
+/**
+ * Fetches previous events from the provided address (Defaults to creator set in <GambaProvider />)
+ */
+declare function useGambaEvents<T extends GambaEventType>(eventName: T, props?: {
+    address?: PublicKey;
+    signatureLimit?: number;
+}): GambaTransaction<T>[];
+
+interface UiPoolState {
+    publicKey: PublicKey;
+    token: PublicKey;
+    liquidity: bigint;
+    minWager: number;
+    maxPayout: number;
+    gambaFee: number;
+    poolFee: number;
+    jackpotBalance: number;
+    authority: PublicKey;
+}
+declare function usePool(token: PublicKey, authority?: PublicKey): UiPoolState;
+
+interface TransactionStore {
+    state: 'none' | 'simulating' | 'processing' | 'signing' | 'sending' | 'confirming' | 'error';
+    label?: string;
+    signatureResult?: any;
+    set: StoreApi<TransactionStore>['setState'];
+    txId: string | undefined;
+}
+declare const useTransactionStore: zustand.UseBoundStore<StoreApi<TransactionStore>>;
+
+declare function useGambaProvider(): gamba_core_v2.GambaProvider;
+declare function useGambaProgram(): _coral_xyz_anchor.Program<gamba_core_v2.GambaIdl>;
+
+interface GambaPluginInput {
+    wallet: PublicKey;
+    creator: PublicKey;
+    token: PublicKey;
+    bet: number[];
+    wager: number;
+    input: GambaPlayInput;
+}
+type GambaPluginOutput = TransactionInstruction[];
+interface GambaPluginContext {
+    creatorFee: number;
+    provider: GambaProvider$1;
+}
+type GambaPlugin = (input: GambaPluginInput, context: GambaPluginContext) => Promise<GambaPluginOutput> | GambaPluginOutput;
+declare const createCustomFeePlugin: (_receiver: string | PublicKey, percent: number) => GambaPlugin;
+
+interface GambaProviderProps {
+    plugins?: GambaPlugin[];
+    /** @deprecated use "plugins" */
+    __experimental_plugins?: any[];
+}
+interface GambaContext {
+    provider: GambaProvider$1;
+    plugins: GambaPlugin[];
+    addPlugin: (plugin: GambaPlugin) => void;
+}
+declare const GambaContext: React.Context<GambaContext>;
+declare function useGambaContext(): GambaContext;
+declare function GambaProvider({ plugins: _plugins, children }: React.PropsWithChildren<GambaProviderProps>): React.JSX.Element;
+
+export { GambaContext, GambaPlayInput, GambaPlugin, GambaPluginContext, GambaPluginInput, GambaPluginOutput, GambaProvider, GambaProviderProps, SendTransactionContext, SendTransactionOptions, SendTransactionProps, SendTransactionProvider, TransactionStore, UiPoolState, UseGambaEventsParams, createCustomFeePlugin, throwTransactionError, useAccount, useBalance, useGamba, useGambaContext, useGambaEventListener, useGambaEvents, useGambaPlay, useGambaProgram, useGambaProvider, useNextResult, usePool, useSendTransaction, useTransactionError, useTransactionStore, useWalletAddress };

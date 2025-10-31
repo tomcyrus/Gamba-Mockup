@@ -1,0 +1,554 @@
+// src/SendTransactionContext.tsx
+import React from "react";
+var defaultValue = {
+  priorityFee: 100001,
+  simulationUnits: 14e5,
+  computeUnitLimitMargin: 1.1
+};
+var SendTransactionContext = React.createContext(defaultValue);
+function SendTransactionProvider({ children, ...props }) {
+  return /* @__PURE__ */ React.createElement(SendTransactionContext.Provider, { value: { ...defaultValue, ...props } }, children);
+}
+
+// src/GambaProvider.tsx
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { GambaProvider as GambaProviderCore } from "gamba-core-v2";
+import React2, { useMemo, useState } from "react";
+var GambaContext = React2.createContext({
+  provider: null,
+  plugins: [],
+  addPlugin: () => null
+});
+function useGambaContext() {
+  const context = React2.useContext(GambaContext);
+  if (!context)
+    throw new Error("No GambaContext");
+  return context;
+}
+function GambaProvider({ plugins: _plugins = [], children }) {
+  const [plugins, setPlugins] = useState(_plugins);
+  const { connection } = useConnection();
+  const walletContext = useWallet();
+  const wallet = useMemo(
+    () => {
+      if (walletContext.connected && walletContext.wallet?.adapter?.publicKey) {
+        return walletContext.wallet.adapter;
+      }
+    },
+    [walletContext]
+  );
+  const provider = useMemo(
+    () => {
+      return new GambaProviderCore(
+        connection,
+        wallet
+      );
+    },
+    [connection, wallet]
+  );
+  const addPlugin = (plugin) => {
+    setPlugins((plugins2) => [...plugins2, plugin]);
+    return () => {
+      setPlugins(
+        (plugins2) => plugins2.filter((p) => p !== plugin)
+      );
+    };
+  };
+  return /* @__PURE__ */ React2.createElement(GambaContext.Provider, { value: {
+    provider,
+    plugins,
+    addPlugin
+  } }, children);
+}
+
+// src/hooks/useAccount.ts
+import { signal } from "@preact/signals-react";
+import { useConnection as useConnection2 } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
+import React3 from "react";
+var DEFAULT_DEBOUNCE_MS = 1;
+var nextBatch = signal(/* @__PURE__ */ new Set());
+var data = signal({});
+var fetchTimeout;
+function useAccount(address, decoder) {
+  const { connection } = useConnection2();
+  const fetchedData = data.value[address.toString()];
+  React3.useEffect(() => {
+    nextBatch.value.add(address.toString());
+    clearTimeout(fetchTimeout);
+    fetchTimeout = setTimeout(async () => {
+      const unique = Array.from(nextBatch.value).filter((x) => !Object.keys(data.value).includes(x));
+      if (!unique.length) {
+        return;
+      }
+      const accounts = await connection.getMultipleAccountsInfo(unique.map((x) => new PublicKey(x)));
+      console.debug("Fetching accounts", unique);
+      const newData = unique.reduce((prev, curr, ci) => {
+        return { ...prev, [curr]: accounts[ci] };
+      }, {});
+      data.value = { ...data.value, ...newData };
+      nextBatch.value.clear();
+    }, DEFAULT_DEBOUNCE_MS);
+    const subscription = connection.onAccountChange(address, (info) => {
+      data.value = { ...data.value, [address.toString()]: info };
+    });
+    return () => {
+      clearTimeout(fetchTimeout);
+      connection.removeAccountChangeListener(subscription);
+    };
+  }, [address.toString()]);
+  try {
+    return decoder(fetchedData);
+  } catch (error) {
+    console.log(error);
+    return;
+  }
+}
+
+// src/hooks/useBalances.ts
+import { useWallet as useWallet2 } from "@solana/wallet-adapter-react";
+import { Keypair } from "@solana/web3.js";
+import { decodeAta, getPoolAddress, getUserBonusAtaForPool, getUserUnderlyingAta, isNativeMint } from "gamba-core-v2";
+var emptyAccount = new Keypair();
+function useWalletAddress() {
+  const wallet = useWallet2();
+  return wallet.publicKey ?? emptyAccount.publicKey;
+}
+function useBalance(publicKey, token, authority) {
+  const ata = getUserUnderlyingAta(publicKey, token);
+  const bonusAta = getUserBonusAtaForPool(publicKey, getPoolAddress(token, authority));
+  const userAccount = useAccount(publicKey, (info) => info);
+  const tokenAccount = useAccount(ata, decodeAta);
+  const bonusAccount = useAccount(bonusAta, decodeAta);
+  const nativeBalance = Number(userAccount?.lamports ?? 0);
+  const balance = Number(tokenAccount?.amount ?? 0);
+  const bonusBalance = Number(bonusAccount?.amount ?? 0);
+  return {
+    nativeBalance,
+    balance: isNativeMint(token) ? nativeBalance : balance,
+    bonusBalance
+  };
+}
+
+// src/hooks/useGamba.ts
+import { useConnection as useConnection4 } from "@solana/wallet-adapter-react";
+import { decodeGame, getGameAddress, getNextResult } from "gamba-core-v2";
+
+// src/hooks/useGambaPlay.ts
+import { useWallet as useWallet4 } from "@solana/wallet-adapter-react";
+import { PublicKey as PublicKey4 } from "@solana/web3.js";
+import { NATIVE_MINT, SYSTEM_PROGRAM, getPoolAddress as getPoolAddress2 } from "gamba-core-v2";
+import React5 from "react";
+
+// src/hooks/useSendTransaction.ts
+import { AnchorError } from "@coral-xyz/anchor";
+import { useConnection as useConnection3, useWallet as useWallet3 } from "@solana/wallet-adapter-react";
+import { ComputeBudgetProgram, PublicKey as PublicKey3, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import React4 from "react";
+
+// src/PubSub.ts
+var PubSub = class {
+  listeners = [];
+  emit(...payload) {
+    for (const listener of this.listeners) {
+      listener(...payload);
+    }
+  }
+  unsubscribe(listener) {
+    const index = this.listeners.indexOf(listener);
+    if (index < 0) {
+      console.warn("Event listener not found");
+      return;
+    }
+    this.listeners.splice(index, 1);
+  }
+  subscribe(listener) {
+    this.listeners.push(listener);
+    return () => this.unsubscribe(listener);
+  }
+};
+
+// src/hooks/useTransactionStore.ts
+import { create } from "zustand";
+var useTransactionStore = create(
+  (set) => ({
+    txId: void 0,
+    label: void 0,
+    state: "none",
+    set
+  })
+);
+
+// src/hooks/useSendTransaction.ts
+var transactionEventEmitter = new PubSub();
+var throwTransactionError = (error) => {
+  transactionEventEmitter.emit(error);
+  return error;
+};
+function useTransactionError(callback) {
+  React4.useLayoutEffect(
+    () => transactionEventEmitter.subscribe(callback),
+    [callback]
+  );
+}
+var getErrorLogs = (error) => {
+  if (typeof error === "object" && !!error && "logs" in error && Array.isArray(error.logs))
+    return error.logs;
+  return null;
+};
+function useSendTransaction() {
+  const store = useTransactionStore();
+  const { connection } = useConnection3();
+  const wallet = useWallet3();
+  const context = React4.useContext(SendTransactionContext);
+  return async (instructions, opts) => {
+    try {
+      store.set({ state: "simulating", label: opts?.label });
+      if (!wallet.publicKey || !wallet.signTransaction) {
+        throw new Error("Wallet Not Connected");
+      }
+      const payer = wallet.publicKey;
+      if (!Array.isArray(instructions)) {
+        instructions = [
+          instructions
+        ];
+      }
+      const priorityFee = opts?.priorityFee ?? context.priorityFee;
+      const resolvedInstructions = await Promise.all(instructions);
+      const lookupTableAddresses = opts?.lookupTable ?? [];
+      const lookupTables = await Promise.all(
+        lookupTableAddresses.map(async (x) => {
+          const response = await connection.getAddressLookupTable(x);
+          return response?.value;
+        }).filter((x) => !!x)
+      );
+      const createTx = async (units, recentBlockhash = PublicKey3.default.toString()) => {
+        const message = new TransactionMessage({
+          payerKey: payer,
+          recentBlockhash,
+          instructions: [
+            ...priorityFee ? [ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee })] : [],
+            ComputeBudgetProgram.setComputeUnitLimit({ units }),
+            ...resolvedInstructions
+          ]
+        }).compileToV0Message(lookupTables);
+        return new VersionedTransaction(message);
+      };
+      const computeUnitLimit = await (async () => {
+        if (opts?.computeUnits) {
+          return opts.computeUnits;
+        }
+        const simulatedTx = await createTx(context.simulationUnits);
+        const simulation = await connection.simulateTransaction(simulatedTx, { replaceRecentBlockhash: true, sigVerify: false });
+        if (simulation.value.err) {
+          throw simulation.value.err;
+        }
+        if (!simulation.value.unitsConsumed) {
+          throw new Error("Simulation did not consume any units.");
+        }
+        return Math.floor(simulation.value.unitsConsumed * (opts?.computeUnitLimitMargin ?? 1));
+      })();
+      const transaction = await createTx(computeUnitLimit, (await connection.getLatestBlockhash(context.blockhashCommitment)).blockhash);
+      const serialized = transaction.serialize();
+      const size = serialized.length + 1 + transaction.signatures.length * 64;
+      console.log("SIZE", size);
+      const signedTransaction = await wallet.signTransaction(transaction);
+      store.set({ state: "sending" });
+      const txId = await connection.sendTransaction(signedTransaction, {
+        skipPreflight: true,
+        preflightCommitment: context.blockhashCommitment
+      });
+      store.set({ state: "processing", txId });
+      console.debug("TX sent", txId);
+      const blockhash = await connection.getLatestBlockhash(context.blockhashCommitment);
+      const confirmStrategy = {
+        blockhash: blockhash.blockhash,
+        lastValidBlockHeight: blockhash.lastValidBlockHeight,
+        signature: txId
+      };
+      connection.confirmTransaction(confirmStrategy, "processed").then((x) => {
+        console.debug("TX processed", x);
+        store.set({
+          state: "confirming",
+          txId,
+          signatureResult: x.value
+        });
+      });
+      connection.confirmTransaction(confirmStrategy, "confirmed").then((x) => {
+        console.debug("TX confirmed", x);
+        store.set({ state: "none" });
+      });
+      if (opts?.confirmation) {
+        await connection.confirmTransaction(confirmStrategy, opts.confirmation);
+      }
+      return txId;
+    } catch (err) {
+      const logs = getErrorLogs(err);
+      const error = (() => {
+        if (logs) {
+          const anchorError = AnchorError.parse(logs);
+          if (anchorError) {
+            return anchorError;
+          }
+        }
+        return err;
+      })();
+      if (logs) {
+        console.error("Error Logs:\n", logs.join("\n"));
+      }
+      store.set({ state: "error" });
+      throw throwTransactionError(error);
+    }
+  };
+}
+
+// src/hooks/useGambaPlay.ts
+function useGambaPlay() {
+  const { connected } = useWallet4();
+  const sendTx = useSendTransaction();
+  const context = React5.useContext(GambaContext);
+  const provider = useGambaProvider();
+  return async function play(input, additionalInstructions = [], opts) {
+    const creator = new PublicKey4(input.creator);
+    const creatorFee = input.creatorFee ?? 0;
+    const jackpotFee = input.jackpotFee ?? 0;
+    const meta = input.metadata?.join(":") ?? "";
+    const token = new PublicKey4(input.token ?? NATIVE_MINT);
+    const poolAuthority = new PublicKey4(input.poolAuthority ?? SYSTEM_PROGRAM);
+    if (!connected) {
+      throw throwTransactionError(new Error("NOT_CONNECTED"));
+    }
+    const pluginInput = {
+      wallet: provider.user,
+      creator,
+      token,
+      wager: input.wager,
+      bet: input.bet,
+      input
+    };
+    const pluginContext = {
+      creatorFee,
+      provider
+    };
+    const pluginInstructions = [];
+    for (const plugin of context.plugins) {
+      const resolved = await plugin(pluginInput, pluginContext);
+      if (resolved) {
+        pluginInstructions.push(...resolved);
+      }
+    }
+    const pool = getPoolAddress2(token, poolAuthority);
+    return sendTx(
+      [
+        ...additionalInstructions,
+        provider.play(
+          input.wager,
+          input.bet,
+          input.clientSeed ?? "",
+          pool,
+          token,
+          creator,
+          pluginContext.creatorFee,
+          jackpotFee,
+          meta,
+          input.useBonus ?? false
+        ),
+        ...pluginInstructions
+      ],
+      { ...opts, label: "play", lookupTable: opts?.lookupTables }
+    );
+  };
+}
+
+// src/hooks/useGamba.ts
+function useNextResult() {
+  const { connection } = useConnection4();
+  const userAddress = useWalletAddress();
+  const game = useAccount(getGameAddress(userAddress), decodeGame);
+  return () => {
+    const prevNonce = game?.nonce?.toNumber() ?? 0;
+    return getNextResult(connection, userAddress, prevNonce);
+  };
+}
+function useGamba() {
+  const userAddress = useWalletAddress();
+  const game = useAccount(getGameAddress(userAddress), decodeGame);
+  const userCreated = !!game;
+  const nextRngSeedHashed = game?.nextRngSeedHashed;
+  const txStore = useTransactionStore();
+  const isPlaying = txStore.state !== "error" && txStore.state !== "none" || !!game?.status.resultRequested;
+  const play = useGambaPlay();
+  const result = useNextResult();
+  return {
+    play,
+    result,
+    userCreated,
+    nonce: Number(game?.nonce?.toNumber()),
+    nextRngSeedHashed,
+    game,
+    isPlaying
+  };
+}
+
+// src/hooks/useGambaEvents.ts
+import { useConnection as useConnection5 } from "@solana/wallet-adapter-react";
+import { PROGRAM_ID, fetchGambaTransactions } from "gamba-core-v2";
+import React6 from "react";
+function useGambaEventListener(eventName, callback, deps = []) {
+  const program = useGambaProgram();
+  React6.useEffect(() => {
+    const listener = program.addEventListener(
+      eventName,
+      (data2, slot, signature) => {
+        const event = {
+          signature,
+          time: Date.now(),
+          name: eventName,
+          data: data2
+        };
+        callback(event);
+      }
+    );
+    return () => {
+      program.removeEventListener(listener);
+    };
+  }, [eventName, program, ...deps]);
+}
+function useGambaEvents(eventName, props = {}) {
+  const { signatureLimit = 30 } = props;
+  const { connection } = useConnection5();
+  const [events, setEvents] = React6.useState([]);
+  const address = props.address ?? PROGRAM_ID;
+  React6.useEffect(
+    () => {
+      fetchGambaTransactions(
+        connection,
+        address,
+        { limit: signatureLimit }
+      ).then((x) => setEvents(x));
+    },
+    [connection, signatureLimit, address]
+  );
+  return React6.useMemo(
+    () => events.filter((x) => x.name === eventName),
+    [eventName, events]
+  );
+}
+
+// src/hooks/usePool.ts
+import { BPS_PER_WHOLE, SYSTEM_PROGRAM as SYSTEM_PROGRAM2, decodeAta as decodeAta2, decodeGambaState, decodePool, getGambaStateAddress, getPoolAddress as getPoolAddress3, getPoolJackpotTokenAccountAddress } from "gamba-core-v2";
+function usePool(token, authority = SYSTEM_PROGRAM2) {
+  const publicKey = getPoolAddress3(token, authority);
+  const account = useAccount(publicKey, decodePool);
+  const gambaState = useAccount(getGambaStateAddress(), decodeGambaState);
+  const jackpotUnderlyingTokenAccount = useAccount(getPoolJackpotTokenAccountAddress(publicKey), decodeAta2);
+  const jackpotBalance = jackpotUnderlyingTokenAccount?.amount ?? BigInt(0);
+  if (!account) {
+    return {
+      token,
+      publicKey,
+      liquidity: BigInt(0),
+      minWager: 0,
+      maxPayout: 0,
+      gambaFee: 0,
+      poolFee: 0,
+      jackpotBalance: 0,
+      authority
+    };
+  }
+  const liquidity = BigInt(account.liquidityCheckpoint);
+  const customGambaFeeBps = account.customGambaFeeBps.toNumber();
+  const customPoolFeeBps = account.customPoolFeeBps.toNumber();
+  const gambaFee = ((customGambaFeeBps || gambaState?.gambaFeeBps.toNumber()) ?? 0) / BPS_PER_WHOLE;
+  const poolFee = ((customPoolFeeBps || gambaState?.defaultPoolFee.toNumber()) ?? 0) / BPS_PER_WHOLE;
+  const maxPayoutBps = (account.customMaxPayoutBps?.toNumber() || gambaState?.maxPayoutBps?.toNumber()) ?? 0;
+  const maxPayout = Number(liquidity * BigInt(maxPayoutBps)) / BPS_PER_WHOLE;
+  return {
+    token,
+    publicKey,
+    minWager: account.minWager.toNumber(),
+    liquidity,
+    maxPayout,
+    gambaFee,
+    poolFee,
+    jackpotBalance: Number(jackpotBalance),
+    authority
+  };
+}
+
+// src/hooks/index.ts
+function useGambaProvider() {
+  return useGambaContext().provider;
+}
+function useGambaProgram() {
+  return useGambaProvider().gambaProgram;
+}
+
+// src/plugins.ts
+import * as SplToken from "@solana/spl-token";
+import { PublicKey as PublicKey5, SystemProgram } from "@solana/web3.js";
+var createCustomFeePlugin = (_receiver, percent) => async (input, context) => {
+  const receiver = new PublicKey5(_receiver);
+  if (input.token.equals(SplToken.NATIVE_MINT)) {
+    return [
+      SystemProgram.transfer({
+        fromPubkey: input.wallet,
+        toPubkey: receiver,
+        lamports: input.wager * percent
+      })
+    ];
+  }
+  const fromAta = SplToken.getAssociatedTokenAddressSync(input.token, input.wallet);
+  const toAta = SplToken.getAssociatedTokenAddressSync(input.token, receiver);
+  const createAtaInstruction = async () => {
+    try {
+      await SplToken.getAccount(context.provider.anchorProvider.connection, toAta, "confirmed");
+      return [];
+    } catch (error) {
+      if (error instanceof SplToken.TokenAccountNotFoundError || error instanceof SplToken.TokenInvalidAccountOwnerError) {
+        return [
+          SplToken.createAssociatedTokenAccountInstruction(
+            input.wallet,
+            toAta,
+            receiver,
+            input.token
+          )
+        ];
+      } else {
+        throw error;
+      }
+    }
+  };
+  return [
+    ...await createAtaInstruction(),
+    SplToken.createTransferInstruction(
+      fromAta,
+      toAta,
+      input.wallet,
+      BigInt(input.wager) / BigInt(1 / percent)
+    )
+  ];
+};
+export {
+  GambaContext,
+  GambaProvider,
+  SendTransactionContext,
+  SendTransactionProvider,
+  createCustomFeePlugin,
+  throwTransactionError,
+  useAccount,
+  useBalance,
+  useGamba,
+  useGambaContext,
+  useGambaEventListener,
+  useGambaEvents,
+  useGambaPlay,
+  useGambaProgram,
+  useGambaProvider,
+  useNextResult,
+  usePool,
+  useSendTransaction,
+  useTransactionError,
+  useTransactionStore,
+  useWalletAddress
+};

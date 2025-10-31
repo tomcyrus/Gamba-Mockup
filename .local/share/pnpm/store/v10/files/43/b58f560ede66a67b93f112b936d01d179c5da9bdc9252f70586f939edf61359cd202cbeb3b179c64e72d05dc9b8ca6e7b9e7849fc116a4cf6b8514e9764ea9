@@ -1,0 +1,1173 @@
+// src/index.ts
+import { PublicKey as PublicKey6 } from "@solana/web3.js";
+import React21 from "react";
+
+// src/GambaPlatformProvider.tsx
+import { PublicKey } from "@solana/web3.js";
+import { NATIVE_MINT } from "gamba-core-v2";
+import React2 from "react";
+
+// src/PortalContext.tsx
+import React from "react";
+import ReactDOM from "react-dom";
+var PortalContext = React.createContext(null);
+var PortalProvider = (props) => {
+  const [refs, _setRefs] = React.useState({});
+  const context = {
+    refs,
+    setRef(target, ref) {
+      _setRefs((refs2) => ({ ...refs2, [target]: ref }));
+    }
+  };
+  return /* @__PURE__ */ React.createElement(PortalContext.Provider, { value: context }, props.children);
+};
+function Portal(props) {
+  const { refs } = React.useContext(PortalContext);
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, refs[props.target]?.current && ReactDOM.createPortal(props.children, refs[props.target]?.current));
+}
+function PortalTarget(props) {
+  const { setRef } = React.useContext(PortalContext);
+  const ref = React.useRef(null);
+  React.useEffect(
+    () => {
+      setRef(props.target, ref);
+      return () => setRef(props.target, null);
+    },
+    [props.target]
+  );
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "contents" }, ref }, props.children);
+}
+
+// src/GambaPlatformProvider.tsx
+var GambaPlatformContext = React2.createContext(null);
+function GambaPlatformProvider(props) {
+  const { creator, children } = props;
+  const [selectedPool, setSelectedPool] = React2.useState(props.defaultPool ?? { token: NATIVE_MINT });
+  const [clientSeed, setClientSeed] = React2.useState(String(Math.random() * 1e9 | 0));
+  const [defaultJackpotFee, setDefaultJackpotFee] = React2.useState(props.defaultJackpotFee ?? 1e-3);
+  const defaultCreatorFee = props.defaultCreatorFee ?? 0.01;
+  const setPool = (tokenMint, authority = new PublicKey("11111111111111111111111111111111")) => {
+    setSelectedPool({
+      token: new PublicKey(tokenMint),
+      authority: new PublicKey(authority)
+    });
+  };
+  const setToken = (tokenMint) => {
+    setPool(tokenMint);
+  };
+  return /* @__PURE__ */ React2.createElement(
+    GambaPlatformContext.Provider,
+    {
+      value: {
+        platform: {
+          name: "",
+          creator: new PublicKey(creator)
+        },
+        selectedPool,
+        setToken,
+        setPool,
+        clientSeed,
+        setClientSeed,
+        defaultJackpotFee,
+        setDefaultJackpotFee,
+        defaultCreatorFee
+      }
+    },
+    /* @__PURE__ */ React2.createElement(PortalProvider, null, children)
+  );
+}
+
+// src/TokenMetaProvider.tsx
+import React3 from "react";
+import { PublicKey as PublicKey2 } from "@solana/web3.js";
+var FAKE_TOKEN_MINT = new PublicKey2("FakeCDoCX1NWywV9m63fk7gmV9S4seMoyqzcNYEmRYjy");
+var TokenMetaContext = React3.createContext({});
+function TokenMetaProvider({ children, tokens = [], fetcher, debounce }) {
+  const byMint = React3.useMemo(
+    () => {
+      return tokens.reduce((prev, value) => ({
+        ...prev,
+        [value.mint.toString()]: value
+      }), {});
+    },
+    [tokens]
+  );
+  const fallback = (mint) => {
+    return byMint[mint.toString()];
+  };
+  return /* @__PURE__ */ React3.createElement(TokenMetaContext.Provider, { value: { tokens, fallback, fetcher, debounce } }, children);
+}
+
+// src/hooks/index.ts
+import { useBalance, useWalletAddress as useWalletAddress2 } from "gamba-react-v2";
+import React20 from "react";
+
+// src/hooks/useCurrentPool.ts
+import { usePool } from "gamba-react-v2";
+import { useContext } from "react";
+
+// src/hooks/useFakeToken.ts
+import { throwTransactionError, useWalletAddress } from "gamba-react-v2";
+import React4 from "react";
+import { create } from "zustand";
+import { getPoolAddress, SYSTEM_PROGRAM } from "gamba-core-v2";
+var betBuffer;
+var useFakeAccountStore = create(
+  (set) => ({
+    balance: 1e12,
+    set
+  })
+);
+useNextFakeResult.delay = 500;
+function useNextFakeResult() {
+  const store = useFakeAccountStore();
+  const context = React4.useContext(GambaPlatformContext);
+  const user = useWalletAddress();
+  return async function getNextFakeResult() {
+    if (!betBuffer)
+      throw new Error("No game in progress");
+    await new Promise((resolve) => setTimeout(resolve, useNextFakeResult.delay));
+    const resultIndex = Math.random() * betBuffer.bet.length | 0;
+    const multiplier = betBuffer.bet[resultIndex];
+    const wager = betBuffer.wager;
+    const payout = multiplier * wager;
+    const profit = payout - wager;
+    store.set(
+      (state) => ({ balance: state.balance + payout })
+    );
+    return {
+      creator: context.platform.creator,
+      user,
+      rngSeed: "fake_rng_seed",
+      clientSeed: betBuffer.clientSeed ?? "",
+      nonce: 0,
+      bet: betBuffer.bet,
+      resultIndex,
+      wager,
+      payout,
+      profit,
+      multiplier,
+      token: context.selectedPool.token,
+      bonusUsed: 0,
+      jackpotWin: 0
+    };
+  };
+}
+function useFakeToken() {
+  const context = React4.useContext(GambaPlatformContext);
+  const balance = useFakeAccountStore();
+  const result = useNextFakeResult();
+  const isActive = context.selectedPool.token.equals(FAKE_TOKEN_MINT);
+  const play = (input) => {
+    if (balance.balance < input.wager) {
+      throw throwTransactionError(new Error("Insufficient funds"));
+    }
+    balance.set(({ balance: balance2 }) => ({ balance: balance2 - input.wager }));
+    betBuffer = input;
+    return "fake_game";
+  };
+  const pool = {
+    publicKey: getPoolAddress(context.selectedPool.token),
+    authority: SYSTEM_PROGRAM,
+    token: context.selectedPool.token,
+    minWager: 0,
+    gambaFee: 0,
+    poolFee: 0,
+    jackpotBalance: 0,
+    liquidity: BigInt(1e99),
+    maxPayout: 1e99
+  };
+  return { isActive, balance, result, play, pool };
+}
+
+// src/hooks/useCurrentPool.ts
+var useCurrentPool = () => {
+  const { selectedPool } = useContext(GambaPlatformContext);
+  const pool = usePool(selectedPool.token, selectedPool.authority);
+  const fake = useFakeToken();
+  if (fake.isActive) {
+    return fake.pool;
+  }
+  return pool;
+};
+
+// src/hooks/useTokenMeta.tsx
+import { signal } from "@preact/signals-react";
+import { PublicKey as PublicKey3 } from "@solana/web3.js";
+import React5 from "react";
+var DEFAULT_DEBOUNCE_MS = 0;
+var tokenMints = signal(/* @__PURE__ */ new Set());
+var tokenData = signal({});
+var STANDARD_TOKEN_DATA = {
+  So11111111111111111111111111111111111111112: {
+    name: "Solana",
+    symbol: "SOL",
+    decimals: 9,
+    image: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png",
+    baseWager: 0.05 * 1e9
+  },
+  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: {
+    symbol: "USDC",
+    image: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png",
+    usdPrice: 1,
+    decimals: 6,
+    baseWager: 1 * 1e6
+  },
+  [FAKE_TOKEN_MINT.toString()]: {
+    name: "Fake Money",
+    symbol: "FAKE",
+    decimals: 9,
+    baseWager: 1 * 1e9,
+    usdPrice: 0
+  }
+};
+var fetchTimeout;
+function useTokenMeta(mint) {
+  const context = React5.useContext(TokenMetaContext);
+  const fetchedTokenData = tokenData.value[mint.toString()];
+  React5.useEffect(() => {
+    tokenMints.value.add(mint.toString());
+    clearTimeout(fetchTimeout);
+    fetchTimeout = setTimeout(async () => {
+      if (!context.fetcher)
+        return;
+      const unique = Array.from(tokenMints.value).filter((x) => x !== FAKE_TOKEN_MINT.toString() && !Object.keys(tokenData.value).includes(x));
+      if (!unique.length) {
+        return;
+      }
+      console.debug("Fetching Mint", unique);
+      const newData = await context.fetcher(unique);
+      tokenData.value = { ...tokenData.value, ...newData };
+      tokenMints.value.clear();
+    }, context.debounce ?? DEFAULT_DEBOUNCE_MS);
+    return () => {
+      clearTimeout(fetchTimeout);
+    };
+  }, [mint.toString()]);
+  const defaultToken = {
+    mint: new PublicKey3(mint),
+    name: "Unknown",
+    symbol: mint.toString().substring(0, 3),
+    image: void 0,
+    decimals: 9,
+    baseWager: 1,
+    usdPrice: 0
+  };
+  const fallback = context.fallback ?? (() => void 0);
+  return {
+    ...defaultToken,
+    ...fetchedTokenData,
+    ...STANDARD_TOKEN_DATA[mint.toString()],
+    ...fallback(mint)
+  };
+}
+useTokenMeta.debouce = DEFAULT_DEBOUNCE_MS;
+useTokenMeta.fallback = (mint) => {
+  return void 0;
+};
+useTokenMeta.setFallbackHandler = (cb) => {
+};
+useTokenMeta.fetcher = (mints) => {
+  return {};
+};
+useTokenMeta.setFetcher = (cb) => {
+};
+
+// src/hooks/useGame.ts
+import { PublicKey as PublicKey4 } from "@solana/web3.js";
+import { useGambaPlay, useNextResult } from "gamba-react-v2";
+import React19 from "react";
+
+// src/GameContext.tsx
+import { useGamba as useGamba3 } from "gamba-react-v2";
+import React18 from "react";
+
+// src/EffectTest.tsx
+import React6 from "react";
+
+// src/hooks/useAnimationFrame.ts
+import { useLayoutEffect, useRef } from "react";
+var useAnimationFrame_default = (cb) => {
+  if (typeof performance === "undefined" || typeof window === "undefined") {
+    return;
+  }
+  const cbRef = useRef(null);
+  const frame = useRef();
+  const init = useRef(performance.now());
+  const last = useRef(performance.now());
+  cbRef.current = cb;
+  const animate = (now) => {
+    cbRef.current({
+      time: (now - init.current) / 1e3,
+      delta: (now - last.current) / 1e3
+    });
+    last.current = now;
+    frame.current = requestAnimationFrame(animate);
+  };
+  useLayoutEffect(() => {
+    frame.current = requestAnimationFrame(animate);
+    return () => {
+      frame.current && cancelAnimationFrame(frame.current);
+    };
+  }, []);
+};
+
+// src/EffectTest.tsx
+function EffectTest({ src }) {
+  const parts = React6.useRef(Array.from({ length: 25 }).map(() => ({
+    x: Math.random(),
+    y: -Math.random() * 600
+  })));
+  const image = React6.useMemo(
+    () => {
+      const image2 = document.createElement("img");
+      image2.src = src;
+      return image2;
+    },
+    [src]
+  );
+  useAnimationFrame_default(
+    () => {
+      parts.current.forEach(
+        (part, i) => {
+          const speed = (1 + Math.sin(i * 44213.3) * 0.1) * 5;
+          part.y += speed;
+        }
+      );
+    }
+  );
+  return /* @__PURE__ */ React6.createElement(
+    GambaUi.Canvas,
+    {
+      zIndex: 99,
+      style: { pointerEvents: "none" },
+      render: ({ ctx, size }, clock) => {
+        ctx.save();
+        ctx.clearRect(0, 0, size.width, size.height);
+        ctx.fillStyle = "#00000011";
+        ctx.fillRect(0, 0, size.width, size.height);
+        ctx.font = "30px arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#22ff11";
+        parts.current.forEach(
+          (part, i) => {
+            ctx.save();
+            ctx.translate(part.x * size.width, size.height - part.y - 25);
+            ctx.scale(0.5, 0.5);
+            ctx.drawImage(image, 0, 0);
+            ctx.restore();
+          }
+        );
+        ctx.restore();
+      }
+    }
+  );
+}
+
+// src/ErrorBoundary.tsx
+import React7 from "react";
+var ErrorBoundary = class extends React7.Component {
+  state = { hasError: false, error: null };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    this.props.onError && this.props.onError(error);
+    this.setState({ hasError: true, error: errorInfo });
+  }
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback)
+        return this.props.fallback;
+      return null;
+    }
+    return this.props.children;
+  }
+};
+
+// src/components/Button.tsx
+import React8 from "react";
+import styled, { css } from "styled-components";
+var StyledButton = styled.button`
+  --color: var(--gamba-ui-button-default-color);
+  --background-color: var(--gamba-ui-button-default-background);
+  --background-color-hover: var(--gamba-ui-button-default-background-hover);
+
+  ${(props) => props.$main && css`
+    --background-color: var(--gamba-ui-button-main-background);
+    --color: var(--gamba-ui-button-main-color);
+    --background-color-hover: var(--gamba-ui-button-main-background-hover);
+  `}
+
+  ${(props) => css`
+    --padding: ${props.$size === "small" ? "5px" : props.$size === "medium" ? "10px" : props.$size === "large" && "15px"};
+  `}
+
+  background: var(--background-color);
+  color: var(--color);
+  &:hover {
+    background: var(--background-color-hover);
+  }
+
+  border: none;
+  border-radius: var(--gamba-ui-border-radius);
+  padding: var(--padding);
+  cursor: pointer;
+  /* min-width: 100px; */
+  text-align: center;
+  align-items: center;
+
+  &:disabled {
+    cursor: default;
+    opacity: .7;
+  }
+`;
+function Button(props) {
+  return /* @__PURE__ */ React8.createElement(
+    StyledButton,
+    {
+      disabled: props.disabled,
+      onClick: props.onClick,
+      $main: props.main,
+      $size: props.size ?? "medium"
+    },
+    props.children
+  );
+}
+
+// src/components/Canvas.tsx
+import React9 from "react";
+var GambaCanvas = React9.forwardRef(function Canvas(props, forwardRef) {
+  const { render, zIndex = 0, style, ...rest } = props;
+  const wrapper = React9.useRef(null);
+  const canvas = React9.useRef(null);
+  React9.useImperativeHandle(forwardRef, () => canvas.current);
+  useAnimationFrame_default(
+    (time) => {
+      const ctx = canvas.current.getContext("2d");
+      ctx.save();
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      render(
+        {
+          canvas: canvas.current,
+          ctx,
+          size: {
+            width: wrapper.current.clientWidth,
+            height: wrapper.current.clientHeight
+          }
+        },
+        time
+      );
+      ctx.restore();
+    }
+  );
+  React9.useLayoutEffect(() => {
+    let timeout;
+    const resize = () => {
+      canvas.current.width = wrapper.current.clientWidth * window.devicePixelRatio;
+      canvas.current.height = wrapper.current.clientHeight * window.devicePixelRatio;
+    };
+    const ro = new ResizeObserver(resize);
+    ro.observe(wrapper.current);
+    const resizeHandler = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        resize();
+      }, 250);
+    };
+    window.addEventListener("resize", resizeHandler);
+    return () => {
+      window.removeEventListener("resize", resizeHandler);
+      ro.disconnect();
+      clearTimeout(timeout);
+    };
+  }, []);
+  return /* @__PURE__ */ React9.createElement("div", { ref: wrapper, style: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", zIndex } }, /* @__PURE__ */ React9.createElement("canvas", { ...rest, style: { width: "100%", height: "100%", ...style }, ref: canvas }));
+});
+
+// src/components/ResponsiveSize.tsx
+import React10 from "react";
+import styled2 from "styled-components";
+var Responsive = styled2.div`
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  max-width: 100vw;
+  height: 100%;
+  left: 0;
+  top: 0;
+`;
+function ResponsiveSize({ children, maxScale = 1, overlay, ...props }) {
+  const wrapper = React10.useRef(null);
+  const inner = React10.useRef(null);
+  const content = React10.useRef(null);
+  React10.useLayoutEffect(() => {
+    let timeout;
+    const resize = () => {
+      const ww = wrapper.current.clientWidth / (content.current.scrollWidth + 40);
+      const hh = wrapper.current.clientHeight / (content.current.clientHeight + 80);
+      const zoom = Math.min(maxScale, ww, hh);
+      inner.current.style.transform = "scale(" + zoom + ")";
+    };
+    const ro = new ResizeObserver(resize);
+    ro.observe(wrapper.current);
+    const resizeHandler = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        resize();
+      }, 250);
+    };
+    window.addEventListener("resize", resizeHandler);
+    return () => {
+      window.removeEventListener("resize", resizeHandler);
+      ro.disconnect();
+      clearTimeout(timeout);
+    };
+  }, [maxScale]);
+  return /* @__PURE__ */ React10.createElement(Responsive, { ...props, ref: wrapper }, /* @__PURE__ */ React10.createElement("div", { ref: inner }, /* @__PURE__ */ React10.createElement("div", { ref: content }, children)));
+}
+
+// src/components/Select.tsx
+import React11 from "react";
+import styled3 from "styled-components";
+var StyledWrapper = styled3.div`
+  position: relative;
+`;
+var StyledPopup = styled3.div`
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: max-content;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-radius: 10px;
+  padding: 5px;
+  color: var(--gamba-ui-input-color);
+  background: var(--gamba-ui-input-background);
+  white-space: nowrap;
+  transform: translateY(-5px);
+  z-index: 100;
+  & > button {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    font-size: inherit;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    &:hover {
+      background: var(--gamba-ui-input-background-hover);
+    }
+  }
+`;
+function Select(props) {
+  const [open, setOpen] = React11.useState(false);
+  const set = (val) => {
+    setOpen(false);
+    props.onChange(val);
+  };
+  return /* @__PURE__ */ React11.createElement(StyledWrapper, { className: props.className }, /* @__PURE__ */ React11.createElement(Button, { disabled: props.disabled, onClick: () => setOpen(!open) }, props.label ? props.label(props.value) : JSON.stringify(props.value)), open && /* @__PURE__ */ React11.createElement(StyledPopup, null, props.options.map((val, i) => /* @__PURE__ */ React11.createElement("button", { key: i, onClick: () => set(val) }, props.label ? props.label(val) : JSON.stringify(val)))));
+}
+
+// src/components/Switch.tsx
+import React12 from "react";
+import styled4 from "styled-components";
+var SwitchButton = styled4.input`
+  all: unset;
+  cursor: pointer;
+  position: relative;
+  height: 25px;
+  aspect-ratio: 2 / 1;
+  border-radius: 20px;
+  background: #0e0e16;
+  &:checked:after {
+    left: 50%;
+  }
+  &:after {
+    transition: left .1s ease;
+    content: " ";
+    height: 100%;
+    width: 50%;
+    left: 0;
+    top: 0;
+    border-radius: 20px;
+    position: absolute;
+    background: #9564ff;
+  }
+  &:not(:disabled):hover {
+    outline: #9564ff solid 1px;
+    outline-offset: 1px;
+  }
+  &:disabled {
+    &:after {
+      background: gray;
+    }
+  }
+`;
+function Switch(props) {
+  return /* @__PURE__ */ React12.createElement(
+    SwitchButton,
+    {
+      type: "checkbox",
+      className: props.className,
+      checked: props.checked,
+      disabled: props.disabled,
+      onChange: (evt) => props.onChange && props.onChange(evt.target.checked)
+    }
+  );
+}
+
+// src/components/TextInput.tsx
+import React13 from "react";
+import styled5 from "styled-components";
+var StyledTextInput = styled5.input`
+  color: var(--gamba-ui-input-color);
+  background: var(--gamba-ui-input-background);
+  &:hover {
+    background: var(--gamba-ui-input-background-hover);
+  }
+
+  border: none;
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  min-width: 100px;
+  align-items: center;
+
+  &:disabled {
+    cursor: default;
+    opacity: .7;
+  }
+`;
+function TextInput({ onChange, ...props }) {
+  return /* @__PURE__ */ React13.createElement(
+    StyledTextInput,
+    {
+      type: "text",
+      onChange: (evt) => onChange && onChange(evt.target.value),
+      onFocus: (evt) => evt.target.select(),
+      ...props
+    }
+  );
+}
+
+// src/components/WagerInput.tsx
+import { useGamba } from "gamba-react-v2";
+import React16, { useRef as useRef2 } from "react";
+import styled6, { css as css2 } from "styled-components";
+
+// src/components/TokenValue.tsx
+import React14 from "react";
+function TokenValue(props) {
+  const context = React14.useContext(GambaPlatformContext);
+  const mint = props.mint ?? context?.selectedPool.token;
+  if (!mint) {
+    throw new Error('"mint" prop is required when not using GambaPlatformProvider');
+  }
+  const token = useTokenMeta(mint);
+  const suffix = props.suffix ?? token?.symbol ?? "?";
+  const tokenAmount = props.amount / 10 ** token.decimals;
+  const displayedAmount = (() => {
+    if (!props.exact) {
+      if (tokenAmount >= 1e9) {
+        return (tokenAmount / 1e9).toLocaleString(void 0, { maximumFractionDigits: 1 }) + "B";
+      }
+      if (tokenAmount >= 1e6) {
+        return (tokenAmount / 1e6).toLocaleString(void 0, { maximumFractionDigits: 1 }) + "M";
+      }
+      if (tokenAmount > 1e3) {
+        return (tokenAmount / 1e3).toLocaleString(void 0, { maximumFractionDigits: 1 }) + "K";
+      }
+    }
+    return tokenAmount.toLocaleString(void 0, { maximumFractionDigits: Math.floor(tokenAmount) > 100 ? 1 : 4 });
+  })();
+  return /* @__PURE__ */ React14.createElement(React14.Fragment, null, displayedAmount, " ", suffix);
+}
+
+// src/hooks/useOnClickOutside.ts
+import React15 from "react";
+function useOnClickOutside(ref, handler) {
+  React15.useEffect(() => {
+    const listener = (event) => {
+      if (!ref.current || ref.current.contains(event.target)) {
+        return;
+      }
+      handler(event);
+    };
+    document.addEventListener("mousedown", listener);
+    document.addEventListener("touchstart", listener);
+    return () => {
+      document.removeEventListener("mousedown", listener);
+      document.removeEventListener("touchstart", listener);
+    };
+  }, [ref, handler]);
+}
+
+// src/components/WagerInput.tsx
+var StyledWagerInput = styled6.div`
+  display: flex;
+  justify-content: space-between;
+  color: var(--gamba-ui-input-color);
+  background: var(--gamba-ui-input-background);
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  ${(props) => props.$edit && css2`
+    outline: #9564ff solid 1px;
+    outline-offset: 1px;
+  `}
+`;
+var Flex = styled6.button`
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+  box-sizing: border-box;
+`;
+var Input = styled6.input`
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 10px;
+  padding-left: 0;
+  padding-right: 0;
+  color: var(--gamba-ui-input-color);
+  background: var(--gamba-ui-input-background);
+  outline: none;
+  flex-grow: 1;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Firefox */
+  &[type=number] {
+    -moz-appearance: textfield;
+  }
+`;
+var InputButton = styled6.button`
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 2px 10px;
+  color: var(--gamba-ui-input-color);
+  background: var(--gamba-ui-input-background);
+  cursor: pointer;
+`;
+var Buttons = styled6.div`
+  display: flex;
+`;
+var TokenImage = styled6.img`
+  width: 25px;
+  height: 25px;
+  margin: 0 5px;
+  border-radius: 50%;
+  -webkit-user-drag: none;
+`;
+var WagerAmount = styled6.div`
+  text-wrap: nowrap;
+  padding: 10px 0;
+  width: 40px;
+
+  @media (min-width: 600px) {
+    width: 100px;
+  }
+
+  opacity: .8;
+  overflow: hidden;
+`;
+function WagerInput(props) {
+  const gamba = useGamba();
+  const token = useCurrentToken();
+  const [input, setInput] = React16.useState("");
+  const balance = useUserBalance();
+  const fees = useFees();
+  const [isEditing, setIsEditing] = React16.useState(false);
+  const ref = useRef2(null);
+  React16.useEffect(
+    () => {
+      props.onChange(token.baseWager);
+    },
+    [token.mint.toString()]
+  );
+  const startEditInput = () => {
+    if (props.options) {
+      setIsEditing(!isEditing);
+      return;
+    }
+    setIsEditing(true);
+    setInput(String(props.value / 10 ** token.decimals));
+  };
+  const apply = () => {
+    props.onChange(Number(input) * 10 ** token.decimals);
+    setIsEditing(false);
+  };
+  const x2 = () => {
+    const availableBalance = balance.balance + balance.bonusBalance;
+    const nextValue = Math.max(token.baseWager, props.value * 2 || token.baseWager);
+    props.onChange(Math.max(0, Math.min(nextValue, availableBalance - nextValue * fees)));
+  };
+  useOnClickOutside(ref, () => setIsEditing(false));
+  return /* @__PURE__ */ React16.createElement("div", { ref, className: props.className, style: { position: "relative" } }, /* @__PURE__ */ React16.createElement(StyledWagerInput, { $edit: isEditing }, /* @__PURE__ */ React16.createElement(Flex, { onClick: () => !gamba.isPlaying && startEditInput() }, /* @__PURE__ */ React16.createElement(TokenImage, { src: token.image }), !isEditing || props.options ? /* @__PURE__ */ React16.createElement(
+    WagerAmount,
+    {
+      title: (props.value / 10 ** token.decimals).toLocaleString()
+    },
+    /* @__PURE__ */ React16.createElement(TokenValue, { suffix: "", amount: props.value, mint: token.mint })
+  ) : /* @__PURE__ */ React16.createElement(
+    Input,
+    {
+      value: input,
+      type: "number",
+      max: balance.balance / 10 ** token.decimals,
+      min: 0,
+      step: 0.05,
+      style: { width: "100px" },
+      onChange: (evt) => setInput(evt.target.value),
+      onKeyDown: (e) => e.code === "Enter" && apply(),
+      onBlur: (evt) => apply(),
+      disabled: gamba.isPlaying,
+      autoFocus: true,
+      onFocus: (e) => e.target.select()
+    }
+  )), !props.options && /* @__PURE__ */ React16.createElement(Buttons, null, /* @__PURE__ */ React16.createElement(InputButton, { disabled: gamba.isPlaying, onClick: () => props.onChange(props.value / 2) }, "x.5"), /* @__PURE__ */ React16.createElement(InputButton, { disabled: gamba.isPlaying, onClick: x2 }, "2x"))), props.options && isEditing && /* @__PURE__ */ React16.createElement(StyledPopup, null, props.options.map((valueInBaseWager, i) => /* @__PURE__ */ React16.createElement(
+    "button",
+    {
+      key: i,
+      onClick: () => {
+        props.onChange(valueInBaseWager * token.baseWager);
+        setIsEditing(false);
+      }
+    },
+    /* @__PURE__ */ React16.createElement(TokenImage, { src: token.image }),
+    /* @__PURE__ */ React16.createElement(TokenValue, { amount: valueInBaseWager * token.baseWager, mint: token.mint })
+  ))));
+}
+
+// src/components/WagerSelect.tsx
+import { useGamba as useGamba2 } from "gamba-react-v2";
+import React17 from "react";
+function WagerSelect(props) {
+  const gamba = useGamba2();
+  return /* @__PURE__ */ React17.createElement(
+    Select,
+    {
+      className: props.className,
+      options: props.options,
+      value: props.value,
+      onChange: props.onChange,
+      disabled: gamba.isPlaying,
+      label: (value) => /* @__PURE__ */ React17.createElement(TokenValue, { amount: value })
+    }
+  );
+}
+
+// src/hooks/useSound.ts
+import { useCallback, useEffect, useMemo } from "react";
+import { Player, Gain } from "tone";
+import { create as create2 } from "zustand";
+var useSoundStore = create2(
+  (set, get) => ({
+    volume: 0.5,
+    masterGain: 0.5,
+    set: (volume) => set({ volume, masterGain: volume }),
+    get
+  })
+);
+var useGambaAudioStore = useSoundStore;
+var Sound = class {
+  player = new Player();
+  gain = new Gain();
+  ready = false;
+  url;
+  constructor(url, autoPlay = false) {
+    this.url = url;
+    this.player.load(url).then((x) => {
+      this.ready = x.loaded;
+      this.player.connect(this.gain);
+      this.gain.toDestination();
+      if (autoPlay) {
+        this.player.loop = true;
+        this.player.start();
+      }
+    }).catch((err) => console.error("Failed to load audio", err));
+  }
+  play({ playbackRate = 1, gain = 0.1 } = {}) {
+    try {
+      this.player.playbackRate = playbackRate;
+      this.gain.set({ gain });
+      this.player.start();
+    } catch (err) {
+      console.warn("Failed to play sound", this.url, err);
+    }
+  }
+};
+function useSound(definition) {
+  const store = useSoundStore();
+  const sources = Object.keys(definition);
+  const soundById = useMemo(
+    () => Object.entries(definition).map(([id, url]) => {
+      const sound = new Sound(url);
+      return { id, sound };
+    }).reduce((prev, { id, sound }) => ({
+      ...prev,
+      [id]: sound
+    }), {}),
+    [...sources]
+  );
+  const sounds = useMemo(() => Object.entries(soundById).map(([_, s]) => s), [soundById]);
+  useEffect(
+    () => {
+      return () => {
+        sounds.forEach((sound) => {
+          sound.player.stop();
+          sound.player.dispose();
+        });
+      };
+    },
+    [soundById]
+  );
+  useEffect(
+    () => {
+      sounds.forEach((sound) => {
+        sound.gain.set({ gain: store.volume });
+      });
+    },
+    [store.volume]
+  );
+  const play = useCallback(
+    (soundId, params) => {
+      const gain = params?.gain ?? 1;
+      const opts = { ...params, gain: gain * store.get().volume };
+      soundById[soundId].play(opts);
+    },
+    [soundById]
+  );
+  return {
+    play,
+    sounds: soundById
+  };
+}
+
+// src/GameContext.tsx
+var GameContext = React18.createContext(null);
+function Game({ game, children, errorFallback }) {
+  return /* @__PURE__ */ React18.createElement(GameContext.Provider, { key: game.id, value: { game } }, /* @__PURE__ */ React18.createElement(ErrorBoundary, { fallback: errorFallback }, /* @__PURE__ */ React18.createElement(React18.Suspense, { fallback: /* @__PURE__ */ React18.createElement(React18.Fragment, null) }, /* @__PURE__ */ React18.createElement(game.app, { ...game.props }))), children);
+}
+function PlayButton(props) {
+  const gamba = useGamba3();
+  return /* @__PURE__ */ React18.createElement(Portal, { target: "play" }, /* @__PURE__ */ React18.createElement(
+    Button,
+    {
+      disabled: gamba.isPlaying || props.disabled,
+      onClick: props.onClick,
+      main: true
+    },
+    props.children
+  ));
+}
+var GambaUi = {
+  useGame,
+  useSound,
+  Portal,
+  PortalTarget,
+  Effect: EffectTest,
+  Button,
+  Game,
+  Responsive: ResponsiveSize,
+  Canvas: GambaCanvas,
+  WagerInput,
+  WagerSelect,
+  Switch,
+  PlayButton,
+  Select,
+  TextInput
+};
+
+// src/hooks/useGame.ts
+function useGame() {
+  const game = React19.useContext(GameContext);
+  const fake = useFakeToken();
+  const context = React19.useContext(GambaPlatformContext);
+  const balances = useUserBalance();
+  const getNextResult = useNextResult();
+  const gambaPlay = useGambaPlay();
+  const result = async () => {
+    if (fake.isActive) {
+      return fake.result();
+    }
+    return getNextResult();
+  };
+  const play = async (input, instructions = []) => {
+    const metaArgs = input.metadata ?? [];
+    const metadata = ["0", game.game.id, ...metaArgs];
+    const gameInput = {
+      ...input,
+      creator: new PublicKey4(context.platform.creator),
+      metadata,
+      clientSeed: context.clientSeed,
+      creatorFee: context.defaultCreatorFee,
+      jackpotFee: context.defaultJackpotFee,
+      token: context.selectedPool.token,
+      // ,getPoolAddress(context.selectedPool.token, ),
+      poolAuthority: context.selectedPool.authority,
+      useBonus: balances.bonusBalance > 0
+    };
+    if (fake.isActive) {
+      return fake.play(gameInput);
+    }
+    return gambaPlay(gameInput, instructions);
+  };
+  return {
+    play,
+    game: game.game,
+    result
+  };
+}
+
+// src/hooks/index.ts
+function useGambaPlatformContext() {
+  return React20.useContext(GambaPlatformContext);
+}
+function useFees() {
+  const context = React20.useContext(GambaPlatformContext);
+  const pool = useCurrentPool();
+  const creatorFee = context.defaultCreatorFee;
+  const jackpotFee = context.defaultJackpotFee;
+  return creatorFee + pool.gambaFee + pool.poolFee + jackpotFee;
+}
+function useCurrentToken() {
+  const { token } = React20.useContext(GambaPlatformContext).selectedPool;
+  return useTokenMeta(token);
+}
+function useTokenBalance(mint) {
+  const token = useCurrentToken();
+  const userAddress = useWalletAddress2();
+  const realBalance = useBalance(userAddress, mint ?? token.mint);
+  const fake = useFakeToken();
+  if (!mint && fake.isActive || mint?.equals(FAKE_TOKEN_MINT)) {
+    return {
+      ...realBalance,
+      balance: fake.balance.balance,
+      bonusBalance: 0
+    };
+  }
+  return realBalance;
+}
+function useUserBalance(mint) {
+  return useTokenBalance(mint);
+}
+
+// src/makeHeliusTokenFetcher.ts
+import { PublicKey as PublicKey5 } from "@solana/web3.js";
+function makeHeliusTokenFetcher(heliusApiKey, params = {}) {
+  const { dollarBaseWager = 1 } = params;
+  return async (tokenMints2) => {
+    const response = await fetch("https://mainnet.helius-rpc.com/?api-key=" + heliusApiKey, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: "my-id",
+        method: "getAssetBatch",
+        params: { ids: tokenMints2 }
+      })
+    });
+    const { result } = await response.json();
+    const tokens = result.filter((x) => !!x).reduce((prev, x) => {
+      const info = x?.token_info;
+      const usdPrice = info?.price_info?.price_per_token;
+      const data = {
+        mint: new PublicKey5(x.id),
+        image: x.content?.links?.image,
+        symbol: x.content?.metadata.symbol ?? info.symbol,
+        decimals: info.decimals,
+        name: x.content?.metadata.name ?? info.symbol,
+        baseWager: dollarBaseWager / usdPrice * 10 ** info.decimals || 1,
+        usdPrice
+        // usdPrice: info.price_info?.price_per_token ?? 0,
+      };
+      return { ...prev, [x.id.toString()]: data };
+    }, {});
+    return tokens;
+  };
+}
+
+// src/index.ts
+function useWagerInput(initial) {
+  const [_wager, setWager] = React21.useState(initial);
+  const context = React21.useContext(GambaPlatformContext);
+  const token = useTokenMeta(context.selectedPool.token);
+  return [_wager ?? token.baseWager, setWager];
+}
+function useTokenList() {
+  return React21.useContext(TokenMetaContext).tokens ?? [];
+}
+var GambaStandardTokens = {
+  fake: {
+    mint: new PublicKey6("FakeCDoCX1NWywV9m63fk7gmV9S4seMoyqzcNYEmRYjy"),
+    name: "Fake Money",
+    symbol: "FAKE",
+    decimals: 9,
+    baseWager: 1 * 1e9
+  },
+  sol: {
+    mint: new PublicKey6("So11111111111111111111111111111111111111112"),
+    name: "Solana",
+    symbol: "SOL",
+    decimals: 9,
+    baseWager: 0.01 * 1e9
+  },
+  usdc: {
+    mint: new PublicKey6("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+    name: "USDC",
+    symbol: "USDC",
+    decimals: 6,
+    baseWager: 0.5 * 1e6
+  },
+  guac: {
+    mint: new PublicKey6("AZsHEMXd36Bj1EMNXhowJajpUXzrKcK57wW4ZGXVa7yR"),
+    name: "Guacamole",
+    symbol: "GUAC",
+    decimals: 5,
+    baseWager: 1e6 * 1e5
+  }
+};
+export {
+  EffectTest,
+  FAKE_TOKEN_MINT,
+  GambaCanvas,
+  GambaPlatformContext,
+  GambaPlatformProvider,
+  GambaStandardTokens,
+  GambaUi,
+  GameContext,
+  PlayButton,
+  TokenMetaContext,
+  TokenMetaProvider,
+  TokenValue,
+  makeHeliusTokenFetcher,
+  useCurrentPool,
+  useCurrentToken,
+  useFakeAccountStore,
+  useFakeToken,
+  useFees,
+  useGambaAudioStore,
+  useGambaPlatformContext,
+  useGame,
+  useNextFakeResult,
+  useSound,
+  useSoundStore,
+  useTokenBalance,
+  useTokenList,
+  useTokenMeta,
+  useUserBalance,
+  useWagerInput
+};

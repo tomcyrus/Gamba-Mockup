@@ -11,7 +11,7 @@ export const CHAIN_CONFIGS: Record<ChainType, ChainConfig> = {
       symbol: 'SOL',
       decimals: 9,
     },
-    blockExplorer: 'https://solscan.io',
+     blockExplorer: 'https://solscan.io',
   },
   [ChainType.ETHEREUM]: {
     id: 'ethereum-mainnet',
@@ -40,6 +40,7 @@ export const CHAIN_CONFIGS: Record<ChainType, ChainConfig> = {
     chainId: 56,
   },
 }
+
 
 export const CHAIN_TOKENS: ChainTokens[] = [
   {

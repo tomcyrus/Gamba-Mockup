@@ -1,0 +1,370 @@
+import React from 'react';
+import * as _solana_web3_js from '@solana/web3.js';
+import { PublicKey, TransactionInstruction } from '@solana/web3.js';
+import * as zustand from 'zustand';
+import { StoreApi } from 'zustand';
+import { Player, Gain } from 'tone';
+import { UiPoolState, GameResult, GambaPlayInput } from 'gamba-react-v2';
+
+declare const FAKE_TOKEN_MINT: PublicKey;
+interface TokenMeta {
+    mint: PublicKey;
+    name: string;
+    symbol: string;
+    image?: string;
+    decimals: number;
+    baseWager: number;
+    /** Set this value if you want to use a private pool */
+    poolAuthority?: PublicKey;
+    usdPrice?: number;
+}
+type TokenMetaFetcher = (ids: string[]) => (Record<string, TokenMeta> | Promise<Record<string, TokenMeta>>);
+type TokenMetaList = PartialTokenMetaWithMint[];
+interface TokenMetaProps {
+    fetcher?: TokenMetaFetcher;
+    tokens?: TokenMetaList;
+    debounce?: number;
+}
+type PartialTokenMetaWithMint = Partial<TokenMeta> & {
+    mint: PublicKey;
+};
+interface TokenMetaContext extends TokenMetaProps {
+    fallback?: (mint: string | PublicKey) => Partial<PartialTokenMetaWithMint> | undefined;
+}
+declare const TokenMetaContext: React.Context<TokenMetaContext>;
+declare function TokenMetaProvider({ children, tokens, fetcher, debounce }: React.PropsWithChildren<TokenMetaProps>): React.JSX.Element;
+
+declare function EffectTest({ src }: {
+    src: string;
+}): React.JSX.Element;
+
+interface PlatformMeta {
+    name: string;
+    creator: PublicKey;
+}
+interface PoolToken {
+    token: PublicKey;
+    authority?: PublicKey;
+}
+interface GambaPlatformContext {
+    platform: PlatformMeta;
+    selectedPool: PoolToken;
+    defaultCreatorFee: number;
+    defaultJackpotFee: number;
+    setDefaultJackpotFee: (defaultJackpotFee: number) => void;
+    setPool: (tokenMint: PublicKey | string, authority?: PublicKey | string) => void;
+    setToken: (tokenMint: PublicKey | string) => void;
+    clientSeed: string;
+    setClientSeed: (clientSeed: string) => void;
+}
+declare const GambaPlatformContext: React.Context<GambaPlatformContext>;
+interface GambaPlatformProviderProps extends React.PropsWithChildren {
+    creator: PublicKey | string;
+    /** @deprecated */
+    games?: GameBundle[];
+    /** @deprecated */
+    tokens?: any[];
+    defaultPool?: PoolToken;
+    /** How much the player should pay in fees to the platform */
+    defaultCreatorFee?: number;
+    /** How much the player should pay in fees to play for the jackpot in every game. 0.001 = 0.1% */
+    defaultJackpotFee?: number;
+}
+declare function GambaPlatformProvider(props: GambaPlatformProviderProps): React.JSX.Element;
+
+/**
+ * Renders the child elements to a <PortalTarget />.
+ */
+declare function Portal(props: React.PropsWithChildren<{
+    target: string;
+}>): React.JSX.Element;
+/**
+ * Renders the elements passed to a <Portal />.
+ */
+declare function PortalTarget(props: React.PropsWithChildren<{
+    target: string;
+}>): React.JSX.Element;
+
+type ButtonSize = 'small' | 'medium' | 'large';
+interface ButtonProps extends React.PropsWithChildren {
+    disabled?: boolean;
+    onClick?: () => void;
+    main?: boolean;
+    size?: ButtonSize;
+}
+declare function Button(props: ButtonProps): React.JSX.Element;
+
+interface Props extends React.PropsWithChildren<React.HTMLAttributes<HTMLDivElement>> {
+    maxScale?: number;
+    overlay?: boolean;
+}
+declare function ResponsiveSize({ children, maxScale, overlay, ...props }: Props): React.JSX.Element;
+
+interface SelectProps<T> extends React.PropsWithChildren {
+    value: T;
+    disabled?: boolean;
+    options: T[];
+    onChange: (value: T) => void;
+    label?: (value: T) => React.ReactNode;
+    className?: string;
+}
+declare function Select<T>(props: SelectProps<T>): React.JSX.Element;
+
+interface SwitchProps {
+    checked?: boolean;
+    onChange?: (checked: boolean) => void;
+    disabled?: boolean;
+    className?: string;
+}
+declare function Switch(props: SwitchProps): React.JSX.Element;
+
+interface TextInputProps<T extends number | string> extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
+    disabled?: boolean;
+    onClick?: () => void;
+    value: T;
+    onChange?: (value: string) => void;
+}
+declare function TextInput<T extends number | string>({ onChange, ...props }: TextInputProps<T>): React.JSX.Element;
+
+interface WagerInputBaseProps {
+    value: number;
+    onChange: (value: number) => void;
+}
+type WagerInputProps = WagerInputBaseProps & {
+    className?: string;
+    disabled?: boolean;
+    options?: number[];
+};
+declare function WagerInput(props: WagerInputProps): React.JSX.Element;
+
+interface WagerSelectProps {
+    options: number[];
+    value: number;
+    onChange: (value: number) => void;
+    className?: string;
+}
+/**
+ * @deprecated Use WagerInput with "options" prop
+ */
+declare function WagerSelect(props: WagerSelectProps): React.JSX.Element;
+
+interface PlaySoundParams {
+    playbackRate?: number;
+    gain?: number;
+}
+interface SoundStore {
+    volume: number;
+    set: (gain: number) => void;
+    get: StoreApi<SoundStore>['getState'];
+    /** @deprecated Use "volume" */
+    masterGain: number;
+}
+declare const useSoundStore: zustand.UseBoundStore<StoreApi<SoundStore>>;
+/** @deprecated use "useSoundStore" */
+declare const useGambaAudioStore: zustand.UseBoundStore<StoreApi<SoundStore>>;
+declare class Sound {
+    player: Player;
+    gain: Gain<"gain">;
+    ready: boolean;
+    private url?;
+    constructor(url: string, autoPlay?: boolean);
+    play({ playbackRate, gain }?: PlaySoundParams): void;
+}
+declare function useSound<T extends {
+    [s: string]: string;
+}>(definition: T): {
+    play: (soundId: keyof T, params?: PlaySoundParams) => void;
+    sounds: Record<keyof T, Sound>;
+};
+
+interface GameProps extends React.PropsWithChildren {
+    game: GameBundle;
+    errorFallback?: React.ReactNode;
+}
+interface GameContext {
+    game: GameBundle;
+}
+declare const GameContext: React.Context<GameContext>;
+declare function Game({ game, children, errorFallback }: GameProps): React.JSX.Element;
+declare function PlayButton(props: ButtonProps): React.JSX.Element;
+declare const GambaUi: {
+    useGame: typeof useGame;
+    useSound: typeof useSound;
+    Portal: typeof Portal;
+    PortalTarget: typeof PortalTarget;
+    Effect: typeof EffectTest;
+    Button: typeof Button;
+    Game: typeof Game;
+    Responsive: typeof ResponsiveSize;
+    Canvas: React.ForwardRefExoticComponent<CanvasProps & React.RefAttributes<HTMLCanvasElement>>;
+    WagerInput: typeof WagerInput;
+    WagerSelect: typeof WagerSelect;
+    Switch: typeof Switch;
+    PlayButton: typeof PlayButton;
+    Select: typeof Select;
+    TextInput: typeof TextInput;
+};
+
+interface AnimationFrameData {
+    time: number;
+    delta: number;
+}
+
+interface CanvasContext {
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
+    size: {
+        width: number;
+        height: number;
+    };
+}
+interface CanvasProps extends React.InputHTMLAttributes<HTMLCanvasElement> {
+    zIndex?: number;
+    render: (context: CanvasContext, time: AnimationFrameData) => void;
+}
+declare const GambaCanvas: React.ForwardRefExoticComponent<CanvasProps & React.RefAttributes<HTMLCanvasElement>>;
+
+interface TokenValueProps {
+    mint?: PublicKey;
+    amount: number;
+    suffix?: string;
+    exact?: boolean;
+}
+declare function TokenValue(props: TokenValueProps): React.JSX.Element;
+
+declare const useCurrentPool: () => UiPoolState;
+
+interface FakeAccountStore {
+    balance: number;
+    set: StoreApi<FakeAccountStore>['setState'];
+}
+declare const useFakeAccountStore: zustand.UseBoundStore<StoreApi<FakeAccountStore>>;
+declare function useNextFakeResult(): () => Promise<GameResult>;
+declare namespace useNextFakeResult {
+    var delay: number;
+}
+declare function useFakeToken(): {
+    isActive: boolean;
+    balance: FakeAccountStore;
+    result: () => Promise<{
+        creator: _solana_web3_js.PublicKey;
+        user: _solana_web3_js.PublicKey;
+        rngSeed: string;
+        clientSeed: string;
+        nonce: number;
+        bet: number[];
+        resultIndex: any;
+        wager: any;
+        payout: number;
+        profit: number;
+        multiplier: number;
+        token: _solana_web3_js.PublicKey;
+        bonusUsed: any;
+        jackpotWin: any;
+    }>;
+    play: (input: GambaPlayInput) => string;
+    pool: UiPoolState;
+};
+
+declare function useGame(): {
+    play: (input: Pick<GambaPlayInput, 'wager' | 'bet' | 'metadata'>, instructions?: TransactionInstruction[]) => Promise<string>;
+    game: GameBundle<any>;
+    result: () => Promise<{
+        creator: PublicKey;
+        user: PublicKey;
+        rngSeed: string;
+        clientSeed: string;
+        nonce: number;
+        bet: number[];
+        resultIndex: any;
+        wager: any;
+        payout: number;
+        profit: number;
+        multiplier: number;
+        token: PublicKey;
+        bonusUsed: any;
+        jackpotWin: any;
+    }>;
+};
+
+declare function useTokenMeta(mint: PublicKey): TokenMeta;
+declare namespace useTokenMeta {
+    var debouce: number;
+    var fallback: (mint: PublicKey) => Partial<TokenMeta> | undefined;
+    var setFallbackHandler: (cb: (mint: PublicKey) => Partial<TokenMeta> | undefined) => void;
+    var fetcher: (mints: string[]) => {};
+    var setFetcher: (cb: UseTokenMetaFetcher) => void;
+}
+type UseTokenMetaFetcher = (tokenMints: string[]) => (Promise<Record<string, TokenMeta>> | Record<string, TokenMeta>);
+
+declare function useGambaPlatformContext(): GambaPlatformContext;
+/**
+ *
+ * @returns Total amount of fees for the given pool and platform
+ */
+declare function useFees(): number;
+declare function useCurrentToken(): TokenMeta;
+declare function useTokenBalance(mint?: PublicKey): {
+    nativeBalance: number;
+    balance: number;
+    bonusBalance: number;
+};
+/** @deprecated renamed to "useTokenBalance" */
+declare function useUserBalance(mint?: PublicKey): {
+    nativeBalance: number;
+    balance: number;
+    bonusBalance: number;
+};
+
+interface HeliusTokenFetcherParams {
+    dollarBaseWager?: number;
+}
+/**
+ * Creates a token metadata fetcher that batches token mints and uses a Helius RPC's "getAssetBatch" method to retrieve their info
+ * @param heliusApiKey (Required Helius API key)
+ * @returns
+ */
+declare function makeHeliusTokenFetcher(heliusApiKey: string, params?: HeliusTokenFetcherParams): (tokenMints: string[]) => Promise<Record<string, TokenMeta>>;
+
+interface GameBundle<T = any> {
+    id: string;
+    app: any;
+    meta?: T;
+    props?: any;
+}
+declare function useWagerInput(initial?: number): readonly [number, React.Dispatch<React.SetStateAction<number | undefined>>];
+/** @deprecated Use <TokenMetaProvider /> */
+declare function useTokenList(): TokenMetaList;
+/** @deprecated Use <TokenMetaProvider /> */
+declare const GambaStandardTokens: {
+    fake: {
+        mint: PublicKey;
+        name: string;
+        symbol: string;
+        decimals: number;
+        baseWager: number;
+    };
+    sol: {
+        mint: PublicKey;
+        name: string;
+        symbol: string;
+        decimals: number;
+        baseWager: number;
+    };
+    usdc: {
+        mint: PublicKey;
+        name: string;
+        symbol: string;
+        decimals: number;
+        baseWager: number;
+    };
+    guac: {
+        mint: PublicKey;
+        name: string;
+        symbol: string;
+        decimals: number;
+        baseWager: number;
+    };
+};
+
+export { CanvasContext, CanvasProps, EffectTest, FAKE_TOKEN_MINT, GambaCanvas, GambaPlatformContext, GambaPlatformProvider, GambaStandardTokens, GambaUi, GameBundle, GameContext, PartialTokenMetaWithMint, PlayButton, PoolToken, SoundStore, TokenMeta, TokenMetaContext, TokenMetaFetcher, TokenMetaList, TokenMetaProps, TokenMetaProvider, TokenValue, TokenValueProps, makeHeliusTokenFetcher, useCurrentPool, useCurrentToken, useFakeAccountStore, useFakeToken, useFees, useGambaAudioStore, useGambaPlatformContext, useGame, useNextFakeResult, useSound, useSoundStore, useTokenBalance, useTokenList, useTokenMeta, useUserBalance, useWagerInput };
