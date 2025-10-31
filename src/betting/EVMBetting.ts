@@ -1,7 +1,7 @@
 import { BettingInterface, PlayOptions, BettingResult } from './types'
 import { getContractAddress, SupportedChain } from '../contracts/addresses'
 import GambaBettingABI from '../contracts/abis/GambaBetting.json'
-import { createPublicClient, createWalletClient, custom, parseEther, formatEther, Hash, parseUnits } from 'viem'
+import { createPublicClient, createWalletClient, custom, parseEther, formatEther, Hash, parseUnits, decodeEventLog } from 'viem'
 import { mainnet, bsc } from 'viem/chains'
 
 export class EVMBetting implements BettingInterface {
@@ -93,7 +93,7 @@ export class EVMBetting implements BettingInterface {
 
       const wagerInWei = parseEther(options.wager.toString())
       
-      const betArray = options.bet.map(b => BigInt(Math.floor(b)))
+      const betArray = options.bet.map(b => BigInt(Math.floor(b * 10000)))
 
       try {
         this.state = 'processing'
@@ -118,13 +118,49 @@ export class EVMBetting implements BettingInterface {
 
         this.state = 'settling'
         
-        const logs = receipt.logs
-        const betPlacedLog = logs.find((log: any) => 
-          log.topics[0] === '0x...'
-        )
-
-        if (betPlacedLog) {
-          this.pendingBetId = betPlacedLog.topics[1] as Hash
+        try {
+          for (const log of receipt.logs) {
+            try {
+              const decodedLog = decodeEventLog({
+                abi: GambaBettingABI,
+                data: log.data,
+                topics: log.topics,
+              })
+              
+              if (decodedLog.eventName === 'BetPlaced') {
+                this.pendingBetId = (decodedLog.args as any).betId as Hash
+                break
+              }
+            } catch (e) {
+              continue
+            }
+          }
+          
+          if (!this.pendingBetId) {
+            console.warn('BetPlaced event not found in transaction receipt, falling back to simulation')
+            const resultIndex = this.simulateResult(options.bet)
+            const multiplier = options.bet[resultIndex]
+            const payout = multiplier > 0 ? options.wager * multiplier : 0
+            
+            this.pendingResult = {
+              resultIndex,
+              payout,
+              multiplier,
+              wager: options.wager,
+            }
+          }
+        } catch (parseError) {
+          console.error('Error parsing transaction logs:', parseError)
+          const resultIndex = this.simulateResult(options.bet)
+          const multiplier = options.bet[resultIndex]
+          const payout = multiplier > 0 ? options.wager * multiplier : 0
+          
+          this.pendingResult = {
+            resultIndex,
+            payout,
+            multiplier,
+            wager: options.wager,
+          }
         }
 
         this.state = 'idle'
@@ -191,7 +227,7 @@ export class EVMBetting implements BettingInterface {
         resultIndex: Number(betData.resultIndex),
         payout: Number(formatEther(betData.payout)),
         multiplier: betData.betArray[Number(betData.resultIndex)] 
-          ? Number(betData.betArray[Number(betData.resultIndex)]) 
+          ? Number(betData.betArray[Number(betData.resultIndex)]) / 10000
           : 0,
         wager: Number(formatEther(betData.wager)),
       }

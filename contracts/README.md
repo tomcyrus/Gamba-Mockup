@@ -27,14 +27,40 @@ ERC20 token contract for testing purposes. Simulates USDC and other tokens on te
 
 ## Randomness
 
-The contract uses on-chain randomness sources:
-- `block.prevrandao` (replaces `block.difficulty` post-merge)
-- `block.timestamp`
-- `blockhash(block.number - 1)`
-- Client-provided seed
-- Bet ID
+⚠️ **CRITICAL WARNING: NOT PRODUCTION-READY** ⚠️
 
-**Note**: For production use, consider integrating Chainlink VRF for provably fair and verifiable randomness.
+The current implementation uses on-chain randomness sources that are **NOT provably fair**:
+- `block.prevrandao` - Can be influenced by validators
+- `block.timestamp` - Manipulable within certain bounds
+- `blockhash(block.number - 1)` - Limited availability
+- Client-provided seed - Only client-side randomness
+- Bet ID - Deterministic
+
+**This randomness can be gamed by miners/validators and is NOT suitable for production gambling.**
+
+### For Production Deployment
+
+You **MUST** integrate a verifiable randomness solution:
+
+1. **Chainlink VRF** (Recommended):
+   ```solidity
+   import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
+   ```
+   - Cryptographically secure
+   - Verifiable on-chain
+   - Industry standard for gaming
+
+2. **Commit-Reveal Scheme** (Minimum):
+   - Two-phase betting process
+   - Prevents result manipulation
+   - Still vulnerable to some attacks
+
+3. **Professional Audit**:
+   - Always audit before mainnet deployment
+   - Focus on randomness and fund security
+   - Test extensively on testnets
+
+**DO NOT USE THIS CONTRACT IN PRODUCTION WITHOUT PROPER RANDOMNESS INTEGRATION.**
 
 ## Installation
 

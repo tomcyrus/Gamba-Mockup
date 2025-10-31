@@ -9,8 +9,18 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title GambaBetting
- * @dev Secure betting contract for multi-game platform with provably fair outcomes
+ * @dev Secure betting contract for multi-game platform
  * @notice This contract handles bets, payouts, and house edge management for various casino-style games
+ * 
+ * ⚠️ WARNING: RANDOMNESS IS NOT PRODUCTION-READY ⚠️
+ * This contract uses on-chain randomness sources (block.prevrandao, block.timestamp, blockhash)
+ * which can be influenced by miners/validators. This is NOT provably fair and should NOT be
+ * used in production without integrating a verifiable randomness source like Chainlink VRF.
+ * 
+ * For production use, you MUST:
+ * 1. Replace _generateRandomResult with Chainlink VRF or similar verifiable randomness
+ * 2. Implement a two-phase commit-reveal scheme at minimum
+ * 3. Get the contract professionally audited
  */
 contract GambaBetting is Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
