@@ -55,6 +55,7 @@ export const CHAIN_TOKENS: ChainTokens[] = [
         baseWager: 0.01,
         usdPrice: 0,
       },
+      
       {
         address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         name: 'USD Coin',
