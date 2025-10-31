@@ -11,6 +11,7 @@ import styled from "styled-components";
 import { Modal } from "../components/Modal";
 import TokenSelect from "./TokenSelect";
 import { UserButton } from "./UserButton";
+import { ChainSwitcher } from "../components/ChainSwitcher";
 
 import { database, ref, push, set, get } from "../components/firebase";
 import phantomIcon from "../assets/ph-icon.gif";
@@ -290,6 +291,7 @@ export default function Header() {
               ✨ <TokenValue amount={balance.bonusBalance} />
             </Bonus>
           )}
+          <ChainSwitcher />
           <TokenSelect />
           <UserButton open={openModal} over={over} />
         </div>
